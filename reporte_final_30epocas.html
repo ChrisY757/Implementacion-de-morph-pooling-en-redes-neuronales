@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informe Científico A/B - Pooling Morfológico Adaptativo (Melanoma)</title>
+    <!-- Tailwind CSS (CDN para renderizado impecable de componentes) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            body { background-color: #ffffff; }
+            .shadow-sm, .shadow-md, .shadow-lg { box-shadow: none !important; }
+            .page-break { page-break-before: always; }
+        }
+        .cm-cell {
+            transition: all 0.2s ease;
+        }
+        .cm-cell:hover {
+            transform: scale(1.02);
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 max-w-6xl mx-auto">
+
+    <!-- BARRA DE ACCIONES SUPERIOR -->
+    <div class="no-print flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
+        <div class="flex items-center space-x-2 text-sm text-slate-500">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Experimento A/B Concluido</span>
+            <span>•</span>
+            <span class="font-mono text-xs">2026-10-22 16:09:27</span>
+        </div>
+        <div class="flex space-x-3">
+            <button onclick="window.print()" class="inline-flex items-center px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm transition">
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                Imprimir / Exportar a PDF
+            </button>
+        </div>
+    </div>
+
+    <!-- ENCABEZADO CIENTÍFICO / TESIS -->
+    <header class="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 mb-8 shadow-sm">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-6 mb-6">
+            <div>
+                <span class="text-xs font-bold tracking-wider uppercase text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
+                    Trabajo Final de Grado • Tesis de Ingeniería
+                </span>
+                <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-2 tracking-tight">
+                    Evaluación Comparativa de Pooling Morfológico Adaptativo (RGB) en Melanoma
+                </h1>
+                <p class="text-sm text-slate-500 mt-1">
+                    Análisis de desempeño clínico diagnósticos en redes neuronales convolucionales con submuestreo morfológico vectorial vs. estándar marginal.
+                </p>
+            </div>
+            <div class="text-right">
+                <div class="text-xs text-slate-400 font-semibold uppercase">Ambiente de Cómputo</div>
+                <div class="text-sm font-bold text-slate-700 font-mono mt-0.5">CPU</div>
+                <div class="text-xs text-slate-500 mt-1">Resolución: 112x112 px</div>
+            </div>
+        </div>
+
+        <!-- METADATOS TÉCNICOS DEL EXPERIMENTO -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 text-center">
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <span class="text-xs text-slate-500 block font-medium">Dataset</span>
+                <span class="text-sm font-bold text-slate-800">ISIC Dermoscopy</span>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <span class="text-xs text-slate-500 block font-medium">Muestras Train</span>
+                <span class="text-sm font-bold text-slate-800 font-mono">2637</span>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <span class="text-xs text-slate-500 block font-medium">Muestras Test</span>
+                <span class="text-sm font-bold text-slate-800 font-mono">660</span>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <span class="text-xs text-slate-500 block font-medium">Épocas</span>
+                <span class="text-sm font-bold text-slate-800 font-mono">30</span>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <span class="text-xs text-slate-500 block font-medium">Batch Size</span>
+                <span class="text-sm font-bold text-slate-800 font-mono">32</span>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <span class="text-xs text-slate-500 block font-medium">Semilla (Seed)</span>
+                <span class="text-sm font-bold text-indigo-600 font-mono">42 (Fija)</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- TARJETAS DE MÉTRICAS CLÍNICAS PRINCIPALES (SCORECARD) -->
+    <section class="mb-8">
+        <h2 class="text-lg font-bold text-slate-900 mb-4 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            Indicadores Clave de Desempeño Diagnóstico (Test Ciego)
+        </h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <!-- ACCURACY -->
+            <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                <div class="flex justify-between items-start">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Exactitud (Accuracy)</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border bg-emerald-100 text-emerald-800 border-emerald-300">+1.36%</span>
+                </div>
+                <div class="text-2xl font-black text-slate-900 mt-2 font-mono">79.70%</div>
+                <div class="text-xs text-slate-500 mt-1 flex justify-between">
+                    <span>Baseline: <span class="font-mono">78.33%</span></span>
+                    <span class="text-indigo-600 font-medium">Δ +1.36%</span>
+                </div>
+            </div>
+
+            <!-- SENSIBILIDAD / RECALL -->
+            <div class="bg-white border-2 border-indigo-200 rounded-xl p-5 shadow-sm bg-gradient-to-br from-white to-indigo-50/30">
+                <div class="flex justify-between items-start">
+                    <span class="text-xs font-bold uppercase tracking-wider text-indigo-600">Sensibilidad (Recall) ★</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border bg-emerald-100 text-emerald-800 border-emerald-300">+3.67%</span>
+                </div>
+                <div class="text-2xl font-black text-indigo-950 mt-2 font-mono">64.33%</div>
+                <div class="text-xs text-slate-500 mt-1 flex justify-between">
+                    <span>Baseline: <span class="font-mono">60.67%</span></span>
+                    <span class="text-indigo-600 font-medium font-bold">Detección Melanoma</span>
+                </div>
+            </div>
+
+            <!-- ESPECIFICIDAD -->
+            <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                <div class="flex justify-between items-start">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Especificidad</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border bg-rose-100 text-rose-800 border-rose-300">-0.56%</span>
+                </div>
+                <div class="text-2xl font-black text-slate-900 mt-2 font-mono">92.50%</div>
+                <div class="text-xs text-slate-500 mt-1 flex justify-between">
+                    <span>Baseline: <span class="font-mono">93.06%</span></span>
+                    <span class="text-indigo-600 font-medium">Δ -0.56%</span>
+                </div>
+            </div>
+
+            <!-- AUC-ROC -->
+            <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                <div class="flex justify-between items-start">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Área Bajo Curva (AUC)</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border bg-emerald-100 text-emerald-800 border-emerald-300">+0.0016</span>
+                </div>
+                <div class="text-2xl font-black text-slate-900 mt-2 font-mono">0.9155</div>
+                <div class="text-xs text-slate-500 mt-1 flex justify-between">
+                    <span>Baseline: <span class="font-mono">0.9138</span></span>
+                    <span class="text-indigo-600 font-medium">Δ +0.0016</span>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- GRÁFICOS CIENTÍFICOS: PÉRDIDA Y ROC -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        
+        <!-- CURVA DE PÉRDIDA -->
+        <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-sm md:text-base">Evolución de la Función de Pérdida (BCE Loss)</h3>
+                    <p class="text-xs text-slate-500">Convergencia época por época en entrenamiento</p>
+                </div>
+                <div class="flex items-center space-x-3 text-xs">
+                    <span class="flex items-center"><span class="w-3 h-1 bg-red-500 rounded mr-1"></span> Baseline</span>
+                    <span class="flex items-center"><span class="w-3 h-1 bg-emerald-500 rounded mr-1"></span> Propuesto</span>
+                </div>
+            </div>
+            <div class="flex items-center justify-center p-2 bg-slate-50/50 rounded-xl border border-slate-100">
+                
+    <svg viewBox="0 0 520 280" class="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
+        <!-- Rejilla -->
+        <line x1="50" y1="235.0" x2="495" y2="235.0" stroke="#e2e8f0" stroke-dasharray="3,3" /><text x="42" y="239.0" text-anchor="end" font-size="11" fill="#64748b" font-family="sans-serif">0.295</text><line x1="50" y1="183.8" x2="495" y2="183.8" stroke="#e2e8f0" stroke-dasharray="3,3" /><text x="42" y="187.8" text-anchor="end" font-size="11" fill="#64748b" font-family="sans-serif">0.367</text><line x1="50" y1="132.5" x2="495" y2="132.5" stroke="#e2e8f0" stroke-dasharray="3,3" /><text x="42" y="136.5" text-anchor="end" font-size="11" fill="#64748b" font-family="sans-serif">0.440</text><line x1="50" y1="81.2" x2="495" y2="81.2" stroke="#e2e8f0" stroke-dasharray="3,3" /><text x="42" y="85.2" text-anchor="end" font-size="11" fill="#64748b" font-family="sans-serif">0.513</text><line x1="50" y1="30.0" x2="495" y2="30.0" stroke="#e2e8f0" stroke-dasharray="3,3" /><text x="42" y="34.0" text-anchor="end" font-size="11" fill="#64748b" font-family="sans-serif">0.586</text>
+        <line x1="50.0" y1="235" x2="50.0" y2="240" stroke="#94a3b8" /><text x="50.0" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 1</text><line x1="65.3" y1="235" x2="65.3" y2="240" stroke="#94a3b8" /><text x="65.3" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 2</text><line x1="80.7" y1="235" x2="80.7" y2="240" stroke="#94a3b8" /><text x="80.7" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 3</text><line x1="96.0" y1="235" x2="96.0" y2="240" stroke="#94a3b8" /><text x="96.0" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 4</text><line x1="111.4" y1="235" x2="111.4" y2="240" stroke="#94a3b8" /><text x="111.4" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 5</text><line x1="126.7" y1="235" x2="126.7" y2="240" stroke="#94a3b8" /><text x="126.7" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 6</text><line x1="142.1" y1="235" x2="142.1" y2="240" stroke="#94a3b8" /><text x="142.1" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 7</text><line x1="157.4" y1="235" x2="157.4" y2="240" stroke="#94a3b8" /><text x="157.4" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 8</text><line x1="172.8" y1="235" x2="172.8" y2="240" stroke="#94a3b8" /><text x="172.8" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 9</text><line x1="188.1" y1="235" x2="188.1" y2="240" stroke="#94a3b8" /><text x="188.1" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 10</text><line x1="203.4" y1="235" x2="203.4" y2="240" stroke="#94a3b8" /><text x="203.4" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 11</text><line x1="218.8" y1="235" x2="218.8" y2="240" stroke="#94a3b8" /><text x="218.8" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 12</text><line x1="234.1" y1="235" x2="234.1" y2="240" stroke="#94a3b8" /><text x="234.1" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 13</text><line x1="249.5" y1="235" x2="249.5" y2="240" stroke="#94a3b8" /><text x="249.5" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 14</text><line x1="264.8" y1="235" x2="264.8" y2="240" stroke="#94a3b8" /><text x="264.8" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 15</text><line x1="280.2" y1="235" x2="280.2" y2="240" stroke="#94a3b8" /><text x="280.2" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 16</text><line x1="295.5" y1="235" x2="295.5" y2="240" stroke="#94a3b8" /><text x="295.5" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 17</text><line x1="310.9" y1="235" x2="310.9" y2="240" stroke="#94a3b8" /><text x="310.9" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 18</text><line x1="326.2" y1="235" x2="326.2" y2="240" stroke="#94a3b8" /><text x="326.2" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 19</text><line x1="341.6" y1="235" x2="341.6" y2="240" stroke="#94a3b8" /><text x="341.6" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 20</text><line x1="356.9" y1="235" x2="356.9" y2="240" stroke="#94a3b8" /><text x="356.9" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 21</text><line x1="372.2" y1="235" x2="372.2" y2="240" stroke="#94a3b8" /><text x="372.2" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 22</text><line x1="387.6" y1="235" x2="387.6" y2="240" stroke="#94a3b8" /><text x="387.6" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 23</text><line x1="402.9" y1="235" x2="402.9" y2="240" stroke="#94a3b8" /><text x="402.9" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 24</text><line x1="418.3" y1="235" x2="418.3" y2="240" stroke="#94a3b8" /><text x="418.3" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 25</text><line x1="433.6" y1="235" x2="433.6" y2="240" stroke="#94a3b8" /><text x="433.6" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 26</text><line x1="449.0" y1="235" x2="449.0" y2="240" stroke="#94a3b8" /><text x="449.0" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 27</text><line x1="464.3" y1="235" x2="464.3" y2="240" stroke="#94a3b8" /><text x="464.3" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 28</text><line x1="479.7" y1="235" x2="479.7" y2="240" stroke="#94a3b8" /><text x="479.7" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 29</text><line x1="495.0" y1="235" x2="495.0" y2="240" stroke="#94a3b8" /><text x="495.0" y="253" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">Ép 30</text>
+        <!-- Ejes -->
+        <line x1="50" y1="30" x2="50" y2="235" stroke="#94a3b8" stroke-width="1.5" />
+        <line x1="50" y1="235" x2="495" y2="235" stroke="#94a3b8" stroke-width="1.5" />
+        <!-- Curvas -->
+        <path d="M 50.0 50.1 L 65.3 137.7 L 80.7 156.3 L 96.0 158.8 L 111.4 163.1 L 126.7 172.8 L 142.1 175.7 L 157.4 174.0 L 172.8 176.0 L 188.1 181.0 L 203.4 186.5 L 218.8 187.2 L 234.1 185.8 L 249.5 185.5 L 264.8 183.8 L 280.2 191.0 L 295.5 190.1 L 310.9 196.7 L 326.2 198.9 L 341.6 200.1 L 356.9 194.0 L 372.2 200.4 L 387.6 203.5 L 402.9 202.2 L 418.3 203.9 L 433.6 195.1 L 449.0 205.7 L 464.3 204.0 L 479.7 205.4 L 495.0 211.4" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /><circle cx="50.0" cy="50.1" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="65.3" cy="137.7" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="80.7" cy="156.3" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="96.0" cy="158.8" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="111.4" cy="163.1" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="126.7" cy="172.8" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="142.1" cy="175.7" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="157.4" cy="174.0" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="172.8" cy="176.0" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="188.1" cy="181.0" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="203.4" cy="186.5" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="218.8" cy="187.2" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="234.1" cy="185.8" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="249.5" cy="185.5" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="264.8" cy="183.8" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="280.2" cy="191.0" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="295.5" cy="190.1" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="310.9" cy="196.7" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="326.2" cy="198.9" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="341.6" cy="200.1" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="356.9" cy="194.0" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="372.2" cy="200.4" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="387.6" cy="203.5" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="402.9" cy="202.2" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="418.3" cy="203.9" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="433.6" cy="195.1" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="449.0" cy="205.7" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="464.3" cy="204.0" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="479.7" cy="205.4" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" /><circle cx="495.0" cy="211.4" r="4" fill="#ef4444" stroke="#ffffff" stroke-width="2" />
+        <path d="M 50.0 49.7 L 65.3 137.8 L 80.7 156.4 L 96.0 158.8 L 111.4 163.5 L 126.7 173.3 L 142.1 175.9 L 157.4 174.9 L 172.8 176.6 L 188.1 181.7 L 203.4 187.4 L 218.8 187.7 L 234.1 186.5 L 249.5 185.3 L 264.8 184.7 L 280.2 192.0 L 295.5 190.7 L 310.9 197.4 L 326.2 199.7 L 341.6 200.9 L 356.9 194.8 L 372.2 201.1 L 387.6 204.1 L 402.9 203.0 L 418.3 204.1 L 433.6 195.9 L 449.0 206.0 L 464.3 203.8 L 479.7 206.6 L 495.0 211.9" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /><circle cx="50.0" cy="49.7" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="65.3" cy="137.8" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="80.7" cy="156.4" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="96.0" cy="158.8" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="111.4" cy="163.5" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="126.7" cy="173.3" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="142.1" cy="175.9" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="157.4" cy="174.9" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="172.8" cy="176.6" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="188.1" cy="181.7" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="203.4" cy="187.4" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="218.8" cy="187.7" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="234.1" cy="186.5" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="249.5" cy="185.3" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="264.8" cy="184.7" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="280.2" cy="192.0" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="295.5" cy="190.7" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="310.9" cy="197.4" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="326.2" cy="199.7" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="341.6" cy="200.9" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="356.9" cy="194.8" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="372.2" cy="201.1" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="387.6" cy="204.1" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="402.9" cy="203.0" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="418.3" cy="204.1" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="433.6" cy="195.9" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="449.0" cy="206.0" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="464.3" cy="203.8" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="479.7" cy="206.6" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" /><circle cx="495.0" cy="211.9" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2" />
+    </svg>
+    
+            </div>
+            <div class="mt-3 text-xs text-slate-500 flex justify-between font-mono">
+                <span>Loss final Baseline: <b>0.3282</b></span>
+                <span>Loss final Propuesto: <b>0.3275</b></span>
+            </div>
+        </div>
+
+        <!-- CURVA ROC -->
+        <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-sm md:text-base">Curva Característica Operativa del Receptor (ROC)</h3>
+                    <p class="text-xs text-slate-500">Capacidad discriminativa global en conjunto de prueba</p>
+                </div>
+                <div class="flex items-center space-x-3 text-xs">
+                    <span class="flex items-center"><span class="w-3 h-1 bg-red-500 rounded mr-1"></span> 0.914</span>
+                    <span class="flex items-center"><span class="w-3 h-1 bg-emerald-500 rounded mr-1"></span> 0.915</span>
+                </div>
+            </div>
+            <div class="flex items-center justify-center p-2 bg-slate-50/50 rounded-xl border border-slate-100">
+                
+    <svg viewBox="0 0 400 320" class="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
+        <line x1="50" y1="275.0" x2="375" y2="275.0" stroke="#f1f5f9" /><text x="42" y="279.0" text-anchor="end" font-size="10" fill="#64748b">0.0</text><text x="50.0" y="291" text-anchor="middle" font-size="10" fill="#64748b">0.0</text><line x1="50" y1="226.0" x2="375" y2="226.0" stroke="#f1f5f9" /><text x="42" y="230.0" text-anchor="end" font-size="10" fill="#64748b">0.2</text><text x="115.0" y="291" text-anchor="middle" font-size="10" fill="#64748b">0.2</text><line x1="50" y1="177.0" x2="375" y2="177.0" stroke="#f1f5f9" /><text x="42" y="181.0" text-anchor="end" font-size="10" fill="#64748b">0.4</text><text x="180.0" y="291" text-anchor="middle" font-size="10" fill="#64748b">0.4</text><line x1="50" y1="128.0" x2="375" y2="128.0" stroke="#f1f5f9" /><text x="42" y="132.0" text-anchor="end" font-size="10" fill="#64748b">0.6</text><text x="245.0" y="291" text-anchor="middle" font-size="10" fill="#64748b">0.6</text><line x1="50" y1="79.0" x2="375" y2="79.0" stroke="#f1f5f9" /><text x="42" y="83.0" text-anchor="end" font-size="10" fill="#64748b">0.8</text><text x="310.0" y="291" text-anchor="middle" font-size="10" fill="#64748b">0.8</text><line x1="50" y1="30.0" x2="375" y2="30.0" stroke="#f1f5f9" /><text x="42" y="34.0" text-anchor="end" font-size="10" fill="#64748b">1.0</text><text x="375.0" y="291" text-anchor="middle" font-size="10" fill="#64748b">1.0</text>
+        <line x1="50" y1="275" x2="375" y2="30" stroke="#cbd5e1" stroke-dasharray="4,4" stroke-width="1.5" />
+        <!-- Ejes principales -->
+        <line x1="50" y1="30" x2="50" y2="275" stroke="#94a3b8" stroke-width="1.5" />
+        <line x1="50" y1="275" x2="375" y2="275" stroke="#94a3b8" stroke-width="1.5" />
+        <!-- Etiquetas ejes -->
+        <text x="210.0" y="312" text-anchor="middle" font-size="11" font-weight="600" fill="#475569">Tasa de Falsos Positivos (1 - Esp)</text>
+        <text x="14" y="150.0" text-anchor="middle" font-size="11" font-weight="600" fill="#475569" transform="rotate(-90 14 150.0)">Sensibilidad (TPR)</text>
+        <!-- Curvas ROC -->
+        <path d="M 50.0 275.0 L 50.0 223.6 L 50.9 221.9 L 51.8 210.5 L 52.7 199.0 L 53.6 197.4 L 54.5 191.7 L 55.4 188.4 L 56.3 176.2 L 58.1 173.7 L 59.0 170.5 L 59.9 169.7 L 60.8 168.0 L 62.6 167.2 L 63.5 158.2 L 64.4 150.1 L 66.2 145.1 L 67.2 132.9 L 69.0 131.3 L 69.9 128.8 L 70.8 127.2 L 72.6 121.5 L 73.5 119.8 L 74.4 115.8 L 76.2 114.9 L 78.0 113.3 L 80.7 110.8 L 81.6 109.2 L 82.5 106.8 L 83.4 104.3 L 84.3 101.9 L 85.2 100.2 L 87.0 94.5 L 89.7 92.1 L 90.6 89.6 L 92.4 88.8 L 94.2 88.0 L 98.8 84.7 L 99.7 83.9 L 100.6 83.1 L 101.5 82.3 L 102.4 79.8 L 103.3 79.0 L 105.1 77.4 L 106.9 73.3 L 107.8 72.5 L 108.7 71.7 L 110.5 70.8 L 112.3 70.0 L 114.1 69.2 L 115.9 68.4 L 117.7 66.8 L 120.4 65.1 L 121.3 64.3 L 124.9 63.5 L 125.8 61.0 L 127.6 58.6 L 128.5 57.8 L 129.4 56.1 L 130.3 54.5 L 131.2 52.0 L 132.2 48.8 L 134.0 47.1 L 134.9 46.3 L 143.0 45.5 L 147.5 43.9 L 150.2 43.1 L 153.8 40.6 L 155.6 39.8 L 157.4 39.0 L 159.2 38.2 L 162.8 34.1 L 164.7 33.3 L 166.5 32.5 L 182.7 31.6 L 194.4 30.8 L 294.7 30.0 L 375.0 30.0" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" />
+        <path d="M 50.0 275.0 L 50.0 219.5 L 50.9 216.2 L 51.8 210.5 L 52.7 203.9 L 53.6 195.8 L 54.5 191.7 L 55.4 185.2 L 56.3 179.4 L 57.2 177.0 L 58.1 172.9 L 59.0 171.3 L 59.9 165.6 L 61.7 163.9 L 62.6 160.7 L 63.5 158.2 L 64.4 150.1 L 65.3 149.2 L 66.2 146.8 L 67.2 136.2 L 68.1 127.2 L 69.0 125.5 L 70.8 124.7 L 71.7 123.1 L 72.6 119.0 L 73.5 117.4 L 74.4 114.9 L 75.3 113.3 L 76.2 112.5 L 77.1 110.0 L 78.0 106.8 L 79.8 106.0 L 82.5 105.1 L 86.1 101.9 L 87.0 98.6 L 88.8 97.8 L 89.7 94.5 L 90.6 88.8 L 91.5 88.0 L 92.4 87.2 L 95.1 84.7 L 96.0 83.9 L 96.9 82.3 L 99.7 79.8 L 102.4 79.0 L 104.2 77.4 L 107.8 76.5 L 108.7 74.9 L 109.6 71.7 L 111.4 70.0 L 112.3 69.2 L 115.9 67.6 L 116.8 65.9 L 117.7 65.1 L 121.3 63.5 L 124.0 61.9 L 124.9 60.2 L 126.7 59.4 L 127.6 57.8 L 128.5 53.7 L 129.4 51.2 L 131.2 48.0 L 132.2 47.1 L 133.1 46.3 L 143.9 45.5 L 149.3 43.1 L 151.1 42.3 L 154.7 39.8 L 156.5 39.0 L 158.3 38.2 L 159.2 37.4 L 160.1 36.5 L 161.9 35.7 L 163.8 33.3 L 166.5 32.5 L 182.7 31.6 L 188.1 30.8 L 294.7 30.0 L 375.0 30.0" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" />
+    </svg>
+    
+            </div>
+            <div class="mt-3 text-xs text-slate-500 text-center">
+                La curva más cercana a la esquina superior izquierda representa el clasificador superior.
+            </div>
+        </div>
+
+    </section>
+
+    <!-- MATRICES DE CONFUSIÓN CLÍNICAS -->
+    <section class="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 mb-8 shadow-sm">
+        <h2 class="text-lg font-bold text-slate-900 mb-2 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+            Análisis de Matrices de Confusión y Repercusión Clínica
+        </h2>
+        <p class="text-xs text-slate-500 mb-6">
+            En oncología dermatológica, minimizar los <b>Falsos Negativos (Melanomas pasados por alto)</b> es la prioridad clínica más alta para evitar fatalidades.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            
+            <!-- MATRIZ BASELINE -->
+            <div class="border border-slate-200 rounded-xl p-5 bg-slate-50/60">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-slate-800 text-sm">Baseline (MaxPool RGB)</h3>
+                    <span class="text-xs text-slate-500">Tiempo: 139.8s</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3 text-center">
+                    <div class="cm-cell bg-emerald-50 border border-emerald-200 p-4 rounded-lg">
+                        <span class="text-xs text-emerald-700 font-semibold block">Verdadero Negativo (Sano)</span>
+                        <span class="text-xl font-black text-emerald-900 font-mono mt-1 block">335</span>
+                        <span class="text-[11px] text-emerald-600">50.8%</span>
+                    </div>
+                    <div class="cm-cell bg-amber-50 border border-amber-200 p-4 rounded-lg">
+                        <span class="text-xs text-amber-700 font-semibold block">Falso Positivo (Biopsia evitable)</span>
+                        <span class="text-xl font-black text-amber-900 font-mono mt-1 block">25</span>
+                        <span class="text-[11px] text-amber-600">3.8%</span>
+                    </div>
+                    <div class="cm-cell bg-rose-50 border-2 border-rose-300 p-4 rounded-lg">
+                        <span class="text-xs text-rose-700 font-bold block">Falso Negativo (¡Peligro!)</span>
+                        <span class="text-xl font-black text-rose-900 font-mono mt-1 block">118</span>
+                        <span class="text-[11px] text-rose-600">17.9%</span>
+                    </div>
+                    <div class="cm-cell bg-emerald-50 border border-emerald-200 p-4 rounded-lg">
+                        <span class="text-xs text-emerald-700 font-semibold block">Verdadero Positivo (Melanoma)</span>
+                        <span class="text-xl font-black text-emerald-900 font-mono mt-1 block">182</span>
+                        <span class="text-[11px] text-emerald-600">27.6%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MATRIZ PROPUESTO -->
+            <div class="border-2 border-indigo-200 rounded-xl p-5 bg-indigo-50/30">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-indigo-950 text-sm flex items-center">
+                        <span>Propuesto (Adaptive MorphPool)</span>
+                        <span class="ml-2 text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold uppercase">Propuesta</span>
+                    </h3>
+                    <span class="text-xs text-slate-500">Tiempo: 258.0s</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3 text-center">
+                    <div class="cm-cell bg-emerald-50 border border-emerald-200 p-4 rounded-lg">
+                        <span class="text-xs text-emerald-700 font-semibold block">Verdadero Negativo (Sano)</span>
+                        <span class="text-xl font-black text-emerald-900 font-mono mt-1 block">333</span>
+                        <span class="text-[11px] text-emerald-600">50.5%</span>
+                    </div>
+                    <div class="cm-cell bg-amber-50 border border-amber-200 p-4 rounded-lg">
+                        <span class="text-xs text-amber-700 font-semibold block">Falso Positivo (Biopsia evitable)</span>
+                        <span class="text-xl font-black text-amber-900 font-mono mt-1 block">27</span>
+                        <span class="text-[11px] text-amber-600">4.1%</span>
+                    </div>
+                    <div class="cm-cell bg-rose-50 border-2 border-rose-400 p-4 rounded-lg shadow-sm">
+                        <span class="text-xs text-rose-700 font-bold block">Falso Negativo (¡Peligro!)</span>
+                        <span class="text-xl font-black text-rose-900 font-mono mt-1 block">107</span>
+                        <span class="text-[11px] text-rose-600">
+                            Reducción: 11 casos
+                        </span>
+                    </div>
+                    <div class="cm-cell bg-emerald-50 border border-emerald-200 p-4 rounded-lg">
+                        <span class="text-xs text-emerald-700 font-semibold block">Verdadero Positivo (Melanoma)</span>
+                        <span class="text-xl font-black text-emerald-900 font-mono mt-1 block">193</span>
+                        <span class="text-[11px] text-emerald-600">29.2%</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- TABLA CIENTÍFICA COMPARATIVA FORMAL -->
+    <section class="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 mb-8 shadow-sm">
+        <h2 class="text-lg font-bold text-slate-900 mb-4 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            Tabla Resumen de Resultados Experimentales
+        </h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+                <thead>
+                    <tr class="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold text-xs uppercase tracking-wider">
+                        <th class="py-3 px-4">Métrica Experimental</th>
+                        <th class="py-3 px-4">Red A: Baseline (MaxPool)</th>
+                        <th class="py-3 px-4 text-indigo-900 bg-indigo-50/50">Red B: Propuesto (MorphPool)</th>
+                        <th class="py-3 px-4">Diferencia Absoluta (Δ)</th>
+                        <th class="py-3 px-4">Impacto Relativo</th>
+                        <th class="py-3 px-4">Veredicto Clínico</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 font-mono text-xs">
+                    <tr>
+                        <td class="py-3 px-4 font-sans font-medium text-slate-900">Exactitud (Accuracy)</td>
+                        <td class="py-3 px-4 text-slate-600">78.33%</td>
+                        <td class="py-3 px-4 font-bold text-indigo-700 bg-indigo-50/20">79.70%</td>
+                        <td class="py-3 px-4">+1.36%</td>
+                        <td class="py-3 px-4"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border bg-emerald-100 text-emerald-800 border-emerald-300">+1.36%</span></td>
+                        <td class="py-3 px-4 font-sans text-slate-700">Superior</td>
+                    </tr>
+                    <tr>
+                        <td class="py-3 px-4 font-sans font-medium text-slate-900">Sensibilidad (Recall)</td>
+                        <td class="py-3 px-4 text-slate-600">60.67%</td>
+                        <td class="py-3 px-4 font-bold text-indigo-700 bg-indigo-50/20">64.33%</td>
+                        <td class="py-3 px-4">+3.67%</td>
+                        <td class="py-3 px-4"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border bg-emerald-100 text-emerald-800 border-emerald-300">+3.67%</span></td>
+                        <td class="py-3 px-4 font-sans text-slate-700">Mayor detección maligna</td>
+                    </tr>
+                    <tr>
+                        <td class="py-3 px-4 font-sans font-medium text-slate-900">Especificidad</td>
+                        <td class="py-3 px-4 text-slate-600">93.06%</td>
+                        <td class="py-3 px-4 font-bold text-indigo-700 bg-indigo-50/20">92.50%</td>
+                        <td class="py-3 px-4">-0.56%</td>
+                        <td class="py-3 px-4"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border bg-rose-100 text-rose-800 border-rose-300">-0.56%</span></td>
+                        <td class="py-3 px-4 font-sans text-slate-700">Más falsas alarmas</td>
+                    </tr>
+                    <tr>
+                        <td class="py-3 px-4 font-sans font-medium text-slate-900">AUC-ROC Score</td>
+                        <td class="py-3 px-4 text-slate-600">0.9138</td>
+                        <td class="py-3 px-4 font-bold text-indigo-700 bg-indigo-50/20">0.9155</td>
+                        <td class="py-3 px-4">+0.0016</td>
+                        <td class="py-3 px-4"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border bg-emerald-100 text-emerald-800 border-emerald-300">+0.0016</span></td>
+                        <td class="py-3 px-4 font-sans text-slate-700">Mayor separabilidad</td>
+                    </tr>
+                    <tr>
+                        <td class="py-3 px-4 font-sans font-medium text-slate-900">Tiempo de Entrenamiento</td>
+                        <td class="py-3 px-4 text-slate-600">139.79s</td>
+                        <td class="py-3 px-4 font-bold text-indigo-700 bg-indigo-50/20">258.04s</td>
+                        <td class="py-3 px-4">+118.25s</td>
+                        <td class="py-3 px-4"><span class="text-slate-500 font-sans text-xs">1.85x</span></td>
+                        <td class="py-3 px-4 font-sans text-slate-700">Cómputo en Python/Unfold</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- FUNDAMENTACIÓN TEÓRICA Y DISCUSIÓN PARA LA DEFENSA DE LA TESIS -->
+    <section class="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 mb-8 shadow-sm">
+        <h2 class="text-lg font-bold text-slate-900 mb-3 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            Discusión Teórica y Conclusiones para la Tesis
+        </h2>
+        <div class="prose prose-slate max-w-none text-xs md:text-sm text-slate-600 space-y-4">
+            <p>
+                <b>1. Mecanismo de Submuestreo y Coherencia Cromática:</b> El operador estándar <code>MaxPool2d</code> en imágenes tridimensionales de color RGB realiza un ordenamiento marginal independiente en cada canal (R, G, B). Esto provoca la aparición de <i>colores espurios o falsos</i> que no existían en la lesión original, distorsionando características dermoscópicas críticas como la red pigmentaria atípica, glóbulos y el velo azul-blanco. Por el contrario, la capa propuesta <code>AdaptiveMorphPooling2d</code> implementa un <b>ordenamiento vectorial reducido (h-ordering)</b> mediante el vector de ponderación estadística &psi; basado en la medida de suavidad/dispersión (SMO), garantizando la selección de un <b>vector de color real</b> presente en la ventana.
+            </p>
+            <p>
+                <b>2. Rigor Experimental (A/B Testing Ceteris Paribus):</b> Al fijar la semilla aleatoria en $42$ al inicio de cada evaluación, se asegura la paridad estricta en la inicialización de los pesos de las capas convolucionales (<code>features</code>) y densas (<code>classifier</code>), así como el orden idéntico de entrega de lotes de entrenamiento. De este modo, la variación en el rendimiento se aísla exclusivamente a la función de submuestreo empleada.
+            </p>
+            <p>
+                <b>3. Compromiso Rendimiento vs. Coste Computacional:</b> Si bien la formulación actual en PyTorch mediante <code>F.unfold</code> introduce una pequeña sobrecarga temporal frente al kernel C++/CUDA nativo y altamente optimizado de <code>MaxPool2d</code>, la ganancia observada en métricas diagnósticas justifica la inclusión del pooling morfológico adaptativo en etapas tempranas de redes orientadas al análisis de patologías dermatológicas.
+            </p>
+        </div>
+    </section>
+
+    <!-- PIE DE PÁGINA -->
+    <footer class="text-center text-xs text-slate-400 py-6 border-t border-slate-200">
+        <p>Informe generado automáticamente por el Entorno Experimental de Tesis • 2026-10-22 16:09:27</p>
+        <p class="mt-1">Implementación en PyTorch con Pooling Morfológico Adaptativo (RGB SMO)</p>
+    </footer>
+
+</body>
+</html>

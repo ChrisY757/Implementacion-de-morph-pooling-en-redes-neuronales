@@ -50,6 +50,12 @@ def parse_args():
         help="Métrica estadística para el descriptor morfológico (default: SMO)"
     )
     parser.add_argument(
+        "-d", "--data-dir",
+        type=str,
+        default="./archive",
+        help="Ruta al directorio de datos que contiene 'train' y 'test' (default: ./archive)"
+    )
+    parser.add_argument(
         "-o", "--output",
         type=str,
         default="reporte_experimento_melanoma.html",
@@ -179,9 +185,17 @@ if __name__ == '__main__':
     print(f" Dispositivo: {DEVICE}")
     print("="*65)
 
+    train_dir = os.path.join(args.data_dir, "train")
+    test_dir = os.path.join(args.data_dir, "test")
+
+    if not os.path.exists(train_dir) or not os.path.exists(test_dir):
+        print(f"\n[!] Error: No se encontraron las carpetas 'train' o 'test' en: {args.data_dir}")
+        print("    Asegúrate de que la ruta sea correcta o especifícala con --data-dir <ruta>\n")
+        exit(1)
+
     print("\n=== PREPARANDO DATASETS EN RAM (Precarga de aceleración) ===")
-    train_dataset = FastRAMDataset(TRAIN_DIR, transform=transform)
-    test_dataset = FastRAMDataset(TEST_DIR, transform=transform)
+    train_dataset = FastRAMDataset(train_dir, transform=transform)
+    test_dataset = FastRAMDataset(test_dir, transform=transform)
 
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
