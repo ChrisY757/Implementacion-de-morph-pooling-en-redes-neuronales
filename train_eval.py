@@ -1,3 +1,4 @@
+from html import parser
 import os
 import time
 import random
@@ -42,13 +43,9 @@ def parse_args():
         default=1e-3,
         help="Tasa de aprendizaje / Learning rate (default: 0.001)"
     )
-    parser.add_argument(
-        "--metric",
-        type=str,
-        default="SMO",
-        choices=["SMO", "VAR"],
-        help="Métrica estadística para el descriptor morfológico (default: SMO)"
-    )
+    parser.add_argument("--metric", 
+    choices=["SMO", "VAR", "MEAN", "MIN", "MAX", "MO1", "MO2"], 
+    default="SMO")
     parser.add_argument(
         "-d", "--data-dir",
         type=str,
@@ -59,8 +56,16 @@ def parse_args():
         "-o", "--output",
         type=str,
         default="reporte_experimento_melanoma.html",
-        help="Ruta/nombre del informe HTML de salida (default: reporte_experimento_melanoma.html)"
+        help="Nombre o ruta del informe HTML de salida; se guarda en la carpeta 'reportes/' (default: reporte_experimento_melanoma.html)"
     )
+    parser.add_argument(
+        "--stat-window",
+        type=str,
+        default="2",
+        choices=["2", "3", "5", "7", "global"],
+        help="Tamaño de la ventana estadística para psi (default: 2)"
+    )
+    
     return parser.parse_args()
 
 # 1. Dataset ultra rápido que precarga todo en memoria RAM

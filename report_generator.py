@@ -521,6 +521,11 @@ def generate_html_report(baseline, proposed, config, output_path="reporte_experi
 </body>
 </html>
 '''
+    reports_dir = "reportes"
+    if not os.path.dirname(output_path):
+        output_path = os.path.join(reports_dir, output_path)
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(html_content)
 

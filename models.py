@@ -3,14 +3,14 @@ import torch.nn as nn
 from morph_pool_layer import AdaptiveMorphPooling2d
 
 class CNNClassifier(nn.Module):
-    def __init__(self, use_morph_pool=False, metric='SMO'):
+    def __init__(self, use_morph_pool=False, metric='SMO', stat_window = None):
         super(CNNClassifier, self).__init__()
         
         self.use_morph_pool = use_morph_pool
 
         # Submuestreo inicial sobre la imagen RGB (3 canales)
         if use_morph_pool:
-            self.morph_pool = AdaptiveMorphPooling2d(kernel_size=2, stride=2, metric=metric)
+            self.morph_pool = AdaptiveMorphPooling2d(kernel_size=2, stride=2, metric=metric, stat_window= stat_window)
         else:
             self.max_pool_rgb = nn.MaxPool2d(kernel_size=2, stride=2)
 
