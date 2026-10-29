@@ -4,16 +4,17 @@ from morph_pool_layer import AdaptiveMorphPooling2d
 import torchvision.models as models
 
 class CNNClassifier(nn.Module):
-    def __init__(self, use_morph_pool=False, metric='SMO', stat_window = None):
-        super(CNNClassifier, self).__init__()
-        
+    def __init__(self, use_morph_pool=False, metric='SMO', stat_window=None, pool_type='max'):
+        super().__init__()
         self.use_morph_pool = use_morph_pool
-
-        # Submuestreo inicial sobre la imagen RGB (3 canales)
         if use_morph_pool:
-            self.morph_pool = AdaptiveMorphPooling2d(kernel_size=2, stride=2, metric=metric, stat_window= stat_window)
+            self.pool = AdaptiveMorphPooling2d(2, 2, metric=metric, stat_window=stat_window)
+        elif pool_type == 'avg':
+            self.pool = nn.AvgPool2d(2, 2)
         else:
-            self.max_pool_rgb = nn.MaxPool2d(kernel_size=2, stride=2)
+            self.pool = nn.MaxPool2d(2, 2)
+        self.morph_pool = self.pool
+        self.max_pool_rgb = self.pool
 
         # Bloques Convolucionales
         self.features = nn.Sequential(
@@ -38,24 +39,21 @@ class CNNClassifier(nn.Module):
         )
 
     def forward(self, x):
-        # Primero reduce la resolución en RGB
-        if self.use_morph_pool:
-            x = self.morph_pool(x)
-        else:
-            x = self.max_pool_rgb(x)
-            
-        # Pasa las imágenes reducidas a la CNN
+        x = self.pool(x)
         x = self.features(x)
-        logits = self.classifier(x)
-        return logits
+        return self.classifier(x)
 
 
 class PretrainedWithPool(nn.Module):
-    def __init__(self, backbone_name='resnet18', use_morph=False, metric='SMO', stat_window=None):
+    def __init__(self, backbone_name='resnet18', use_morph=False, metric='SMO', stat_window=None, pool_type='max'):
         super().__init__()
         self.backbone_name = backbone_name
-        self.pool = (AdaptiveMorphPooling2d(2, 2, metric=metric, stat_window=stat_window)
-                     if use_morph else nn.MaxPool2d(2, 2))
+        if use_morph:
+            self.pool = AdaptiveMorphPooling2d(2, 2, metric=metric, stat_window=stat_window)
+        elif pool_type == 'avg':
+            self.pool = nn.AvgPool2d(2, 2)
+        else:
+            self.pool = nn.MaxPool2d(2, 2)
 
         if backbone_name == 'vgg16':
             bb = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1)

@@ -71,6 +71,13 @@ def parse_args():
         choices=["simple", "vgg16", "resnet18"],
         help="Arquitectura: simple (CNN), vgg16 o resnet18 (default: simple)"
     )
+    parser.add_argument(
+        "--pool",
+        type=str,
+        default="max",
+        choices=["max", "avg"],
+        help="Pooling baseline (default: max). El propuesto siempre es morph."
+    )
     
     return parser.parse_args()
 
@@ -147,10 +154,15 @@ def _precompute_static_features(model, model_name, images_tensor, batch_size, de
     return torch.cat(outputs, dim=0)
 
 
-def run_experiment(model_name, use_morph, name, epochs, batch_size, lr, metric, stat_window, train_dataset, test_dataset):
+def run_experiment(model_name, pool_type, use_morph, name, epochs, batch_size, lr,
+                   metric, stat_window, train_dataset, test_dataset):
     set_seed(42)
-    model = (CNNClassifier(use_morph, metric, stat_window) if model_name == "simple"
-             else PretrainedWithPool(model_name, use_morph, metric, stat_window)).to(DEVICE)
+    if model_name == "simple":
+        model = CNNClassifier(use_morph_pool=use_morph, metric=metric,
+                              stat_window=stat_window, pool_type=pool_type).to(DEVICE)
+    else:
+        model = PretrainedWithPool(model_name, use_morph=use_morph, metric=metric,
+                                   stat_window=stat_window, pool_type=pool_type).to(DEVICE)
 
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -289,8 +301,9 @@ if __name__ == '__main__':
 
     baseline_results = run_experiment(
         model_name=args.model,
+        pool_type=args.pool,
         use_morph=False,
-        name=f"Baseline ({args.model.upper()} + MaxPool RGB)",
+        name=f"Baseline ({args.model.upper()} + {args.pool.upper()}Pool RGB)",
         epochs=args.epochs,
         batch_size=batch_size,
         lr=lr,
@@ -302,6 +315,7 @@ if __name__ == '__main__':
 
     proposed_results = run_experiment(
         model_name=args.model,
+        pool_type="morph",
         use_morph=True,
         name=f"Propuesto ({args.model.upper()} + MorphPool RGB)",
         epochs=args.epochs,
@@ -319,6 +333,7 @@ if __name__ == '__main__':
         config={
             "dataset": "ISIC Dermoscopy (Benign vs Malignant)",
             "model": args.model,
+            "pool": args.pool,
             "batch_size": batch_size,
             "epochs": args.epochs,
             "lr": lr,

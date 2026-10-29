@@ -143,7 +143,7 @@ def generate_html_report(baseline, proposed, config, output_path="reporte_experi
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Informe Científico A/B - Pooling Morfológico Adaptativo (Melanoma) — {config.get('model','simple').upper()}</title>
+    <title>Informe Científico A/B - Pooling Morfológico Adaptativo (Melanoma) — {config.get('model','simple').upper()} ({config.get('pool','max').upper()} vs Morph)</title>
     <!-- Tailwind CSS (CDN para renderizado impecable de componentes) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -198,7 +198,7 @@ def generate_html_report(baseline, proposed, config, output_path="reporte_experi
                     Trabajo Final de Grado • Tesis de Ingeniería
                 </span>
                 <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-2 tracking-tight">
-                    Evaluación Comparativa de Pooling Morfológico Adaptativo (RGB) en Melanoma — {config.get('model','simple').upper()}
+                    Evaluación Comparativa de Pooling Morfológico Adaptativo (RGB) en Melanoma — {config.get('model','simple').upper()} ({config.get('pool','max').upper()} vs Morph)
                 </h1>
                 <p class="text-sm text-slate-500 mt-1">
                     Análisis de desempeño clínico diagnósticos en redes neuronales convolucionales con submuestreo morfológico vectorial vs. estándar marginal.
