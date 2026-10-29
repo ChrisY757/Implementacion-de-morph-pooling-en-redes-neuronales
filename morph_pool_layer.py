@@ -38,9 +38,12 @@ class AdaptiveMorphPooling2d(nn.Module):
         else:
             # Caso ventana grande: 3x3, 5x5, 7x7...
             sw_int = int(self.stat_window)
-            pad = (sw_int - kh) // 2                  # Padding para centrar
+            total_pad = sw_int - kh                   # Padding total para mantener H_out x W_out
+            pad_tl = total_pad // 2
+            pad_br = total_pad - pad_tl
+            x_padded = F.pad(x, (pad_tl, pad_br, pad_tl, pad_br))
             
-            x_stat_unfold = F.unfold(x, kernel_size=(sw_int, sw_int), stride=(sh, sw), padding=pad)
+            x_stat_unfold = F.unfold(x_padded, kernel_size=(sw_int, sw_int), stride=(sh, sw))
             x_stat_unfold = x_stat_unfold.view(B, C, sw_int * sw_int, H_out, W_out)
             x_stat = x_stat_unfold.permute(0, 1, 3, 4, 2)  # [B, C, H_out, W_out, sw_int^2]
 

@@ -1,4 +1,3 @@
-from html import parser
 import os
 import time
 import random
@@ -11,7 +10,7 @@ from torchvision import datasets, transforms
 from sklearn.metrics import accuracy_score, recall_score, roc_auc_score, confusion_matrix, roc_curve
 
 import argparse
-from models import CNNClassifier
+from models import CNNClassifier, PretrainedWithPool
 from report_generator import generate_html_report
 
 def set_seed(seed=42):
@@ -34,8 +33,8 @@ def parse_args():
     parser.add_argument(
         "-b", "--batch-size",
         type=int,
-        default=64,
-        help="Tamaño del lote / batch size (default: 64)"
+        default=None,
+        help="Tamaño del lote / batch size (default automático: 64 en simple, 32 en resnet18, 16 en vgg16)"
     )
     parser.add_argument(
         "--lr",
@@ -65,6 +64,13 @@ def parse_args():
         choices=["2", "3", "5", "7", "global"],
         help="Tamaño de la ventana estadística para psi (default: 2)"
     )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="simple",
+        choices=["simple", "vgg16", "resnet18"],
+        help="Arquitectura: simple (CNN), vgg16 o resnet18 (default: simple)"
+    )
     
     return parser.parse_args()
 
@@ -73,13 +79,17 @@ class FastRAMDataset(Dataset):
     def __init__(self, folder_path, transform):
         print(f"Cargando {folder_path} directamente a memoria RAM...")
         raw_dataset = datasets.ImageFolder(folder_path)
+        total = len(raw_dataset)
         self.images = []
         self.labels = []
-        
-        for img, label in raw_dataset:
+
+        for idx, (img, label) in enumerate(raw_dataset, 1):
             self.images.append(transform(img))
             self.labels.append(label)
-            
+            if idx % 250 == 0 or idx == total:
+                print(f"\r    Leídas {idx}/{total} imágenes...", end="", flush=True)
+        print()
+
         self.images = torch.stack(self.images)
         self.labels = torch.tensor(self.labels, dtype=torch.float32)
         print(f"--> {len(self.labels)} imágenes listadas en RAM.")
@@ -90,66 +100,126 @@ class FastRAMDataset(Dataset):
     def __getitem__(self, idx):
         return self.images[idx], self.labels[idx]
 
-# Configuración base de rutas y dispositivo
-DATA_DIR = "./archive"
-TRAIN_DIR = os.path.join(DATA_DIR, "train")
-TEST_DIR = os.path.join(DATA_DIR, "test")
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# Detección automática de dispositivo (CUDA / XPU / CPU)
+def get_best_device():
+    if torch.cuda.is_available():
+        torch.backends.cudnn.benchmark = True
+        return torch.device("cuda"), f"CUDA ({torch.cuda.get_device_name(0)})"
+    if hasattr(torch, "xpu") and torch.xpu.is_available():
+        return torch.device("xpu"), "Intel XPU"
+    return torch.device("cpu"), f"CPU ({torch.get_num_threads()} hilos con oneDNN/MKLDNN)"
 
-# Reducción a 112x112 para acelerar 4 veces el cálculo
-transform = transforms.Compose([
+DEVICE, DEVICE_NAME = get_best_device()
+
+transform_simple = transforms.Compose([
     transforms.Resize((112, 112)),
     transforms.ToTensor()
 ])
 
-def run_experiment(use_morph, name, epochs, batch_size, lr, metric, train_loader, test_loader, train_size):
+transform_pretrained = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    # Normalización de ImageNet (nota: usar descriptores SMO o VAR, invariantes a desplazamiento)
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225])
+])
+
+@torch.inference_mode()
+def _precompute_static_features(model, model_name, images_tensor, batch_size, desc=""):
+    """
+    Precalcula una sola vez la etapa estática/congelada (pooling inicial + bloques congelados)
+    ya que no posee parámetros entrenables y su salida es invariante entre épocas.
+    """
+    model.eval()
+    outputs = []
+    n = images_tensor.size(0)
+    step = max(batch_size, 64)
+
+    for i in range(0, n, step):
+        batch = images_tensor[i:i + step].to(DEVICE, non_blocking=True)
+        if model_name == "simple":
+            out = model.morph_pool(batch) if model.use_morph_pool else model.max_pool_rgb(batch)
+        else:
+            out = model.extract_frozen(batch)
+        outputs.append(out.cpu())
+        print(f"\r    [{desc}] Procesadas {min(i + step, n)}/{n} imágenes...", end="", flush=True)
+    print()
+    return torch.cat(outputs, dim=0)
+
+
+def run_experiment(model_name, use_morph, name, epochs, batch_size, lr, metric, stat_window, train_dataset, test_dataset):
     set_seed(42)
-    model = CNNClassifier(use_morph_pool=use_morph, metric=metric).to(DEVICE)
+    model = (CNNClassifier(use_morph, metric, stat_window) if model_name == "simple"
+             else PretrainedWithPool(model_name, use_morph, metric, stat_window)).to(DEVICE)
+
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"[Parámetros {model_name}] Entrenables: {trainable_params:,} / Total: {total_params:,}")
     criterion = nn.BCEWithLogitsLoss()
-    optimizer = optim.AdamW(model.parameters(), lr=lr)
+    use_foreach = DEVICE.type in ("cuda", "cpu")
+    optimizer = optim.AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=lr, foreach=use_foreach)
 
     print(f"\n================ Ejecutando: {name} ({epochs} épocas) ================")
     start_time = time.time()
+
+    # Precalcular etapa sin parámetros entrenables (Pooling RGB + capas congeladas)
+    print(" -> Precalculando etapa estática (Pooling RGB + bloques congelados)...")
+    train_x = _precompute_static_features(model, model_name, train_dataset.images, batch_size, desc="Train")
+    test_x = _precompute_static_features(model, model_name, test_dataset.images, batch_size, desc="Test")
+    train_y = train_dataset.labels
+    test_y = test_dataset.labels
+    train_size = len(train_y)
+    test_size = len(test_y)
+
+    # Reiniciar semilla antes del bucle de épocas para garantizar idéntico barajado A/B
+    set_seed(42)
     epoch_losses = []
 
     for epoch in range(epochs):
+        ep_t0 = time.time()
         model.train()
         running_loss = 0.0
-        for images, labels in train_loader:
-            images = images.to(DEVICE)
-            labels = labels.unsqueeze(1).to(DEVICE)
+        perm = torch.randperm(train_size)
 
-            optimizer.zero_grad()
-            outputs = model(images)
+        for i in range(0, train_size, batch_size):
+            idx = perm[i:i + batch_size]
+            images = train_x[idx].to(DEVICE, non_blocking=True)
+            labels = train_y[idx].unsqueeze(1).to(DEVICE, non_blocking=True)
+
+            optimizer.zero_grad(set_to_none=True)
+            if model_name == "simple":
+                outputs = model.classifier(model.features(images))
+            else:
+                outputs = model.forward_trainable(images)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
             running_loss += loss.item() * images.size(0)
+            print(f"\r    Época [{epoch+1}/{epochs}] Lote {min(i + batch_size, train_size)}/{train_size}...", end="", flush=True)
 
         epoch_loss = running_loss / train_size
         epoch_losses.append(epoch_loss)
-        print(f"Época [{epoch+1}/{epochs}] - Loss: {epoch_loss:.4f}")
+        print(f"\rÉpoca [{epoch+1}/{epochs}] - Loss: {epoch_loss:.4f} ({time.time() - ep_t0:.1f}s)          ")
 
     elapsed = time.time() - start_time
     print(f"Tiempo de entrenamiento: {elapsed:.2f} segundos.")
 
     # Evaluación en Test
     model.eval()
-    all_probs, all_preds, all_labels = [], [], []
-    with torch.no_grad():
-        for images, labels in test_loader:
-            images = images.to(DEVICE)
-            outputs = model(images)
+    all_probs = []
+    with torch.inference_mode():
+        for i in range(0, test_size, batch_size):
+            images = test_x[i:i + batch_size].to(DEVICE, non_blocking=True)
+            if model_name == "simple":
+                outputs = model.classifier(model.features(images))
+            else:
+                outputs = model.forward_trainable(images)
             probs = torch.sigmoid(outputs)
-            preds = (probs > 0.5).float()
+            all_probs.append(probs.cpu())
 
-            all_probs.extend(probs.cpu().numpy())
-            all_preds.extend(preds.cpu().numpy())
-            all_labels.extend(labels.numpy())
-
-    all_probs = np.array(all_probs).ravel()
-    all_preds = np.array(all_preds).ravel()
-    all_labels = np.array(all_labels).ravel()
+    all_probs = torch.cat(all_probs, dim=0).numpy().ravel()
+    all_preds = (all_probs > 0.5).astype(np.float32)
+    all_labels = test_y.numpy().ravel()
 
     acc = accuracy_score(all_labels, all_preds)
     sens = recall_score(all_labels, all_preds)
@@ -183,12 +253,27 @@ def run_experiment(use_morph, name, epochs, batch_size, lr, metric, train_loader
 
 if __name__ == '__main__':
     args = parse_args()
+    # En GPU con VRAM limitada usar 32/16; en CPU (RAM de sistema) usar 64 para minimizar pasos de AdamW
+    if DEVICE.type == "cuda":
+        default_bs = {"simple": 64, "resnet18": 32, "vgg16": 16}
+    else:
+        default_bs = {"simple": 64, "resnet18": 64, "vgg16": 64}
+    batch_size = args.batch_size if args.batch_size is not None else default_bs[args.model]
+    lr = args.lr if args.model == "simple" else 1e-4
+    selected_transform = transform_simple if args.model == "simple" else transform_pretrained
+    resolution = "112x112" if args.model == "simple" else "224x224"
+    stat_window = args.stat_window if args.stat_window == "global" else int(args.stat_window)
 
     print("\n" + "="*65)
-    print(" INICIO DEL EXPERIMENTO COMPARATIVO A/B (MELANOMA)")
-    print(f" Épocas: {args.epochs} | Batch Size: {args.batch_size} | LR: {args.lr} | Métrica: {args.metric}")
-    print(f" Dispositivo: {DEVICE}")
+    print(f" INICIO DEL EXPERIMENTO COMPARATIVO A/B (MELANOMA) - {args.model.upper()}")
+    print(f" Épocas: {args.epochs} | Batch Size: {batch_size} | LR: {lr} | Métrica: {args.metric} | Ventana: {args.stat_window}")
+    print(f" Dispositivo: {DEVICE_NAME}")
     print("="*65)
+
+    if args.model != "simple" and args.metric not in ("SMO", "VAR"):
+        print(f"\n[!] ADVERTENCIA METODOLÓGICA: '{args.metric}' se evalúa sobre tensores normalizados con ImageNet")
+        print("    (valores centrados en 0 y negativos). Se recomienda usar 'SMO' o 'VAR' para")
+        print("    comparaciones consistentes entre arquitecturas.\n")
 
     train_dir = os.path.join(args.data_dir, "train")
     test_dir = os.path.join(args.data_dir, "test")
@@ -199,34 +284,33 @@ if __name__ == '__main__':
         exit(1)
 
     print("\n=== PREPARANDO DATASETS EN RAM (Precarga de aceleración) ===")
-    train_dataset = FastRAMDataset(train_dir, transform=transform)
-    test_dataset = FastRAMDataset(test_dir, transform=transform)
-
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
+    train_dataset = FastRAMDataset(train_dir, transform=selected_transform)
+    test_dataset = FastRAMDataset(test_dir, transform=selected_transform)
 
     baseline_results = run_experiment(
+        model_name=args.model,
         use_morph=False,
-        name="Baseline (MaxPool RGB)",
+        name=f"Baseline ({args.model.upper()} + MaxPool RGB)",
         epochs=args.epochs,
-        batch_size=args.batch_size,
-        lr=args.lr,
+        batch_size=batch_size,
+        lr=lr,
         metric=args.metric,
-        train_loader=train_loader,
-        test_loader=test_loader,
-        train_size=len(train_dataset)
+        stat_window=stat_window,
+        train_dataset=train_dataset,
+        test_dataset=test_dataset
     )
 
     proposed_results = run_experiment(
+        model_name=args.model,
         use_morph=True,
-        name="Propuesto (MorphPool RGB)",
+        name=f"Propuesto ({args.model.upper()} + MorphPool RGB)",
         epochs=args.epochs,
-        batch_size=args.batch_size,
-        lr=args.lr,
+        batch_size=batch_size,
+        lr=lr,
         metric=args.metric,
-        train_loader=train_loader,
-        test_loader=test_loader,
-        train_size=len(train_dataset)
+        stat_window=stat_window,
+        train_dataset=train_dataset,
+        test_dataset=test_dataset
     )
 
     report_path = generate_html_report(
@@ -234,12 +318,14 @@ if __name__ == '__main__':
         proposed=proposed_results,
         config={
             "dataset": "ISIC Dermoscopy (Benign vs Malignant)",
-            "batch_size": args.batch_size,
+            "model": args.model,
+            "batch_size": batch_size,
             "epochs": args.epochs,
-            "lr": args.lr,
+            "lr": lr,
             "metric": args.metric,
+            "stat_window": args.stat_window,
             "device": str(DEVICE),
-            "resolution": "112x112",
+            "resolution": resolution,
             "train_samples": len(train_dataset),
             "test_samples": len(test_dataset),
             "date": time.strftime("%Y-%m-%d %H:%M:%S")
@@ -248,7 +334,7 @@ if __name__ == '__main__':
     )
 
     print("\n" + "="*65)
-    print(" [✓] INFORME CIENTÍFICO GENERADO CON ÉXITO")
+    print(" [OK] INFORME CIENTÍFICO GENERADO CON ÉXITO")
     print(f" Archivo HTML: {report_path}")
     print(" Puedes abrirlo en tu navegador web para ver los resultados.")
     print("="*65 + "\n")

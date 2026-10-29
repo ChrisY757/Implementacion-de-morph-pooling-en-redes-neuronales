@@ -143,7 +143,7 @@ def generate_html_report(baseline, proposed, config, output_path="reporte_experi
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Informe Científico A/B - Pooling Morfológico Adaptativo (Melanoma)</title>
+    <title>Informe Científico A/B - Pooling Morfológico Adaptativo (Melanoma) — {config.get('model','simple').upper()}</title>
     <!-- Tailwind CSS (CDN para renderizado impecable de componentes) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -198,7 +198,7 @@ def generate_html_report(baseline, proposed, config, output_path="reporte_experi
                     Trabajo Final de Grado • Tesis de Ingeniería
                 </span>
                 <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-2 tracking-tight">
-                    Evaluación Comparativa de Pooling Morfológico Adaptativo (RGB) en Melanoma
+                    Evaluación Comparativa de Pooling Morfológico Adaptativo (RGB) en Melanoma — {config.get('model','simple').upper()}
                 </h1>
                 <p class="text-sm text-slate-500 mt-1">
                     Análisis de desempeño clínico diagnósticos en redes neuronales convolucionales con submuestreo morfológico vectorial vs. estándar marginal.
@@ -364,7 +364,7 @@ def generate_html_report(baseline, proposed, config, output_path="reporte_experi
             <!-- MATRIZ BASELINE -->
             <div class="border border-slate-200 rounded-xl p-5 bg-slate-50/60">
                 <div class="flex justify-between items-center mb-3">
-                    <h3 class="font-bold text-slate-800 text-sm">Baseline (MaxPool RGB)</h3>
+                    <h3 class="font-bold text-slate-800 text-sm">{baseline['name']}</h3>
                     <span class="text-xs text-slate-500">Tiempo: {baseline['elapsed']:.1f}s</span>
                 </div>
                 <div class="grid grid-cols-2 gap-3 text-center">
@@ -395,7 +395,7 @@ def generate_html_report(baseline, proposed, config, output_path="reporte_experi
             <div class="border-2 border-indigo-200 rounded-xl p-5 bg-indigo-50/30">
                 <div class="flex justify-between items-center mb-3">
                     <h3 class="font-bold text-indigo-950 text-sm flex items-center">
-                        <span>Propuesto (Adaptive MorphPool)</span>
+                        <span>{proposed['name']}</span>
                         <span class="ml-2 text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold uppercase">Propuesta</span>
                     </h3>
                     <span class="text-xs text-slate-500">Tiempo: {proposed['elapsed']:.1f}s</span>
@@ -440,8 +440,8 @@ def generate_html_report(baseline, proposed, config, output_path="reporte_experi
                 <thead>
                     <tr class="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold text-xs uppercase tracking-wider">
                         <th class="py-3 px-4">Métrica Experimental</th>
-                        <th class="py-3 px-4">Red A: Baseline (MaxPool)</th>
-                        <th class="py-3 px-4 text-indigo-900 bg-indigo-50/50">Red B: Propuesto (MorphPool)</th>
+                        <th class="py-3 px-4">Red A: {baseline['name']}</th>
+                        <th class="py-3 px-4 text-indigo-900 bg-indigo-50/50">Red B: {proposed['name']}</th>
                         <th class="py-3 px-4">Diferencia Absoluta (Δ)</th>
                         <th class="py-3 px-4">Impacto Relativo</th>
                         <th class="py-3 px-4">Veredicto Clínico</th>
@@ -508,6 +508,9 @@ def generate_html_report(baseline, proposed, config, output_path="reporte_experi
             </p>
             <p>
                 <b>3. Compromiso Rendimiento vs. Coste Computacional:</b> Si bien la formulación actual en PyTorch mediante <code>F.unfold</code> introduce una pequeña sobrecarga temporal frente al kernel C++/CUDA nativo y altamente optimizado de <code>MaxPool2d</code>, la ganancia observada en métricas diagnósticas justifica la inclusión del pooling morfológico adaptativo en etapas tempranas de redes orientadas al análisis de patologías dermatológicas.
+            </p>
+            <p>
+                <b>4. Consideración Metodológica sobre Normalización entre Arquitecturas:</b> En la CNN simple los tensores de entrada se mantienen en el rango $[0, 1]$ (<code>ToTensor()</code>), mientras que en los modelos preentrenados (VGG-16 y ResNet-18) se aplica la normalización estándar de ImageNet (centrada en cero con valores negativos). Debido a esto, para comparar arquitecturas de forma metodológicamente consistente se deben emplear los descriptores basados en dispersión (<code>SMO</code> o <code>VAR</code>, invariantes a desplazamientos de media), evitando descriptores sensibles al rango y signo como <code>MIN</code>, <code>MAX</code> o <code>MEAN</code>.
             </p>
         </div>
     </section>
