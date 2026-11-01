@@ -85,15 +85,35 @@ class AdaptiveMorphPooling2d(nn.Module):
         out = torch.gather(x_win, dim=-1, index=max_idx_expanded).squeeze(-1)
         return out  # [B, 3, H_out, W_out]
 
-    # --- Métodos auxiliares para la moda (necesarios si usas MO1/MO2) ---
+    # --- Métodos auxiliares para la moda real (MO1 = moda menor en empate, MO2 = moda mayor en empate) ---
+    def _compute_mode(self, x_win, high=False):
+        # Ordenamos ascendente (MO1) o descendente (MO2) para desempatar determinísticamente
+        sorted_vals, _ = torch.sort(x_win, dim=-1, descending=high)
+        # Cuantizamos a niveles de 8 bits para contar frecuencias reales sin ruido numérico
+        q = torch.round(sorted_vals * 255.0)
+        n_elem = q.size(-1)
+
+        if n_elem <= 64:
+            counts = torch.zeros_like(q, dtype=torch.int32)
+            for k in range(n_elem):
+                counts += (q == q[..., k:k+1]).int()
+            best_idx = torch.argmax(counts, dim=-1, keepdim=True)
+            return torch.gather(sorted_vals, dim=-1, index=best_idx)
+
+        # Caso ventana global: usar torch.unique por imagen y canal
+        B, C = sorted_vals.shape[:2]
+        out = torch.empty((B, C, 1, 1), dtype=x_win.dtype, device=x_win.device)
+        for b in range(B):
+            for c in range(C):
+                vals, cnts = torch.unique(q[b, c], sorted=True, return_counts=True)
+                if high:
+                    vals = vals.flip(0)
+                    cnts = cnts.flip(0)
+                out[b, c, 0, 0] = vals[torch.argmax(cnts)] / 255.0
+        return out
+
     def _mode_low(self, x_win):
-        # Implementación simple para ventanas pequeñas (K²=4)
-        # Ordenamos y buscamos el valor que más se repite
-        sorted_vals, _ = torch.sort(x_win, dim=-1)
-        # Si todos son iguales, devolvemos el primero
-        # (Una implementación completa requeriría contar frecuencias)
-        return sorted_vals[..., 0:1]  # Simplificación
+        return self._compute_mode(x_win, high=False)
 
     def _mode_high(self, x_win):
-        sorted_vals, _ = torch.sort(x_win, dim=-1)
-        return sorted_vals[..., -1:]
+        return self._compute_mode(x_win, high=True)

@@ -12,6 +12,7 @@ from sklearn.metrics import accuracy_score, recall_score, roc_auc_score, confusi
 import argparse
 from models import CNNClassifier, PretrainedWithPool
 from report_generator import generate_html_report
+from report_aggregator import aggregate_report
 
 def set_seed(seed=42):
     random.seed(seed)
@@ -85,27 +86,41 @@ def parse_args():
         choices=["max", "avg"],
         help="Pooling baseline (default: max). El propuesto siempre es morph."
     )
+    parser.add_argument(
+        "--seeds",
+        type=int,
+        nargs="+",
+        default=None,
+        help="Lista de semillas para ejecutar múltiples experimentos (ej: --seeds 42 7 123)"
+    )
+    parser.add_argument(
+        "--epochs-list",
+        type=int,
+        nargs="+",
+        default=None,
+        help="Lista de épocas para ejecutar múltiples experimentos (ej: --epochs-list 5 10)"
+    )
     
     return parser.parse_args()
 
-# 1. Dataset ultra rápido que precarga todo en memoria RAM
+# 1. Dataset ultra rápido que precarga todo en memoria RAM (sin duplicar memoria en torch.stack)
 class FastRAMDataset(Dataset):
     def __init__(self, folder_path, transform):
         print(f"Cargando {folder_path} directamente a memoria RAM...")
         raw_dataset = datasets.ImageFolder(folder_path)
         total = len(raw_dataset)
-        self.images = []
-        self.labels = []
+        self.images = None
+        self.labels = torch.empty(total, dtype=torch.float32)
 
-        for idx, (img, label) in enumerate(raw_dataset, 1):
-            self.images.append(transform(img))
-            self.labels.append(label)
-            if idx % 250 == 0 or idx == total:
-                print(f"\r    Leídas {idx}/{total} imágenes...", end="", flush=True)
+        for idx, (img, label) in enumerate(raw_dataset):
+            t_img = transform(img)
+            if self.images is None:
+                self.images = torch.empty((total, *t_img.shape), dtype=t_img.dtype)
+            self.images[idx] = t_img
+            self.labels[idx] = label
+            if (idx + 1) % 250 == 0 or (idx + 1) == total:
+                print(f"\r    Leídas {idx + 1}/{total} imágenes...", end="", flush=True)
         print()
-
-        self.images = torch.stack(self.images)
-        self.labels = torch.tensor(self.labels, dtype=torch.float32)
         print(f"--> {len(self.labels)} imágenes listadas en RAM.")
 
     def __len__(self):
@@ -145,9 +160,10 @@ def _precompute_static_features(model, model_name, images_tensor, batch_size, de
     ya que no posee parámetros entrenables y su salida es invariante entre épocas.
     """
     model.eval()
-    outputs = []
+    out_tensor = None
     n = images_tensor.size(0)
-    step = max(batch_size, 64)
+    step = batch_size if DEVICE.type == "cuda" else max(batch_size, 64)
+    use_pin = (DEVICE.type == "cuda")
 
     for i in range(0, n, step):
         batch = images_tensor[i:i + step].to(DEVICE, non_blocking=True)
@@ -155,10 +171,12 @@ def _precompute_static_features(model, model_name, images_tensor, batch_size, de
             out = model.morph_pool(batch) if model.use_morph_pool else model.max_pool_rgb(batch)
         else:
             out = model.extract_frozen(batch)
-        outputs.append(out.cpu())
+        if out_tensor is None:
+            out_tensor = torch.empty((n, *out.shape[1:]), dtype=out.dtype, pin_memory=use_pin)
+        out_tensor[i:i + out.size(0)].copy_(out.cpu())
         print(f"\r    [{desc}] Procesadas {min(i + step, n)}/{n} imágenes...", end="", flush=True)
     print()
-    return torch.cat(outputs, dim=0)
+    return out_tensor
 
 
 def run_experiment(model_name, pool_type, use_morph, name, epochs, batch_size, lr,
@@ -253,6 +271,10 @@ def run_experiment(model_name, pool_type, use_morph, name, epochs, batch_size, l
     print(f"Especificidad: {spec*100:.2f}%")
     print(f"AUC-ROC:       {auc:.4f}")
 
+    del model, train_x, test_x
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
     return {
         "name": name,
         "use_morph": use_morph,
@@ -301,10 +323,14 @@ if __name__ == '__main__':
     data_dir = next((c for c in candidates if os.path.exists(c)), candidates[0])
     dataset_label = os.path.basename(os.path.normpath(data_dir))
 
+    seeds_list = args.seeds if args.seeds is not None else [args.seed]
+    epochs_list = args.epochs_list if args.epochs_list is not None else [args.epochs]
+    multi_run = (len(seeds_list) > 1 or len(epochs_list) > 1)
+
     print("\n" + "="*65)
     print(f" INICIO DEL EXPERIMENTO COMPARATIVO A/B (MELANOMA) - {args.model.upper()}")
-    print(f" Dataset: {dataset_label} | Épocas: {args.epochs} | Batch Size: {batch_size} | LR: {lr}")
-    print(f" Métrica: {args.metric} | Ventana: {args.stat_window} | Pool Baseline: {args.pool.upper()} | Seed: {args.seed}")
+    print(f" Dataset: {dataset_label} | Épocas: {epochs_list} | Batch Size: {batch_size} | LR: {lr}")
+    print(f" Métrica: {args.metric} | Ventana: {args.stat_window} | Pool Baseline: {args.pool.upper()} | Seeds: {seeds_list}")
     print(f" Dispositivo: {DEVICE_NAME}")
     print("="*65)
 
@@ -325,60 +351,100 @@ if __name__ == '__main__':
     train_dataset = FastRAMDataset(train_dir, transform=selected_transform)
     test_dataset = FastRAMDataset(test_dir, transform=selected_transform)
 
-    baseline_results = run_experiment(
-        model_name=args.model,
-        pool_type=args.pool,
-        use_morph=False,
-        name=f"Baseline ({args.model.upper()} + {args.pool.upper()}Pool RGB)",
-        epochs=args.epochs,
-        batch_size=batch_size,
-        lr=lr,
-        metric=args.metric,
-        stat_window=stat_window,
-        train_dataset=train_dataset,
-        test_dataset=test_dataset,
-        seed=args.seed
-    )
+    base_out_name, base_out_ext = os.path.splitext(args.output)
+    if not base_out_ext:
+        base_out_ext = ".html"
 
-    proposed_results = run_experiment(
-        model_name=args.model,
-        pool_type="morph",
-        use_morph=True,
-        name=f"Propuesto ({args.model.upper()} + MorphPool RGB)",
-        epochs=args.epochs,
-        batch_size=batch_size,
-        lr=lr,
-        metric=args.metric,
-        stat_window=stat_window,
-        train_dataset=train_dataset,
-        test_dataset=test_dataset,
-        seed=args.seed
-    )
+    for ep in epochs_list:
+        ep_results = []
+        for seed in seeds_list:
+            set_seed(seed)
+            baseline_results = run_experiment(
+                model_name=args.model,
+                pool_type=args.pool,
+                use_morph=False,
+                name=f"Baseline ({args.model.upper()} + {args.pool.upper()}Pool RGB)",
+                epochs=ep,
+                batch_size=batch_size,
+                lr=lr,
+                metric=args.metric,
+                stat_window=stat_window,
+                train_dataset=train_dataset,
+                test_dataset=test_dataset,
+                seed=seed
+            )
 
-    report_path = generate_html_report(
-        baseline=baseline_results,
-        proposed=proposed_results,
-        config={
-            "dataset": f"ISIC ({dataset_label})",
-            "model": args.model,
-            "pool": args.pool,
-            "seed": args.seed,
-            "batch_size": batch_size,
-            "epochs": args.epochs,
-            "lr": lr,
-            "metric": args.metric,
-            "stat_window": args.stat_window,
-            "device": str(DEVICE),
-            "resolution": resolution,
-            "train_samples": len(train_dataset),
-            "test_samples": len(test_dataset),
-            "date": time.strftime("%Y-%m-%d %H:%M:%S")
-        },
-        output_path=args.output
-    )
+            proposed_results = run_experiment(
+                model_name=args.model,
+                pool_type="morph",
+                use_morph=True,
+                name=f"Propuesto ({args.model.upper()} + MorphPool RGB)",
+                epochs=ep,
+                batch_size=batch_size,
+                lr=lr,
+                metric=args.metric,
+                stat_window=stat_window,
+                train_dataset=train_dataset,
+                test_dataset=test_dataset,
+                seed=seed
+            )
 
-    print("\n" + "="*65)
-    print(" [OK] INFORME CIENTÍFICO GENERADO CON ÉXITO")
-    print(f" Archivo HTML: {report_path}")
-    print(" Puedes abrirlo en tu navegador web para ver los resultados.")
-    print("="*65 + "\n")
+            run_output = (
+                f"{base_out_name}_s{seed}_e{ep}{base_out_ext}"
+                if multi_run else args.output
+            )
+            run_config = {
+                "dataset": f"ISIC ({dataset_label})",
+                "model": args.model,
+                "pool": args.pool,
+                "seed": seed,
+                "batch_size": batch_size,
+                "epochs": ep,
+                "lr": lr,
+                "metric": args.metric,
+                "stat_window": args.stat_window,
+                "device": DEVICE_NAME,
+                "resolution": resolution,
+                "train_samples": len(train_dataset),
+                "test_samples": len(test_dataset),
+                "date": time.strftime("%Y-%m-%d %H:%M:%S")
+            }
+
+            report_path = generate_html_report(
+                baseline=baseline_results,
+                proposed=proposed_results,
+                config=run_config,
+                output_path=run_output
+            )
+
+            print("\n" + "="*65)
+            print(f" [OK] INFORME INDIVIDUAL GENERADO (Seed: {seed} | Épocas: {ep})")
+            print(f" Archivo HTML: {report_path}")
+            print("="*65)
+
+            ep_results.append({
+                "seed": seed,
+                "epochs": ep,
+                "baseline": baseline_results,
+                "proposed": proposed_results
+            })
+
+        if len(seeds_list) > 1:
+            agg_out = f"{base_out_name}_agregado_e{ep}{base_out_ext}"
+            agg_path = aggregate_report(
+                results=ep_results,
+                output_path=agg_out,
+                config={
+                    "dataset": f"ISIC ({dataset_label})",
+                    "model": args.model,
+                    "pool": args.pool,
+                    "epochs": ep,
+                    "metric": args.metric,
+                    "stat_window": args.stat_window,
+                    "device": DEVICE_NAME,
+                }
+            )
+            print("\n" + "="*65)
+            print(f" [OK] INFORME ESTADÍSTICO AGREGADO ({len(seeds_list)} seeds | Épocas: {ep})")
+            print(f" Archivo HTML Agregado: {agg_path}")
+            print("="*65 + "\n")
