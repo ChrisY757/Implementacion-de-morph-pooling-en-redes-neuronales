@@ -46,10 +46,17 @@ def parse_args():
     choices=["SMO", "VAR", "MEAN", "MIN", "MAX", "MO1", "MO2"], 
     default="SMO")
     parser.add_argument(
-        "-d", "--data-dir",
+        "-d", "--data-dir", "--dataset",
+        dest="data_dir",
         type=str,
-        default="./archive",
-        help="Ruta al directorio de datos que contiene 'train' y 'test' (default: ./archive)"
+        default="archive",
+        help="Carpeta del dataset a utilizar: 'archive', 'archive 2', 'archive 3' o ruta (default: archive)"
+    )
+    parser.add_argument(
+        "-s", "--seed",
+        type=int,
+        default=42,
+        help="Semilla aleatoria para reproducibilidad A/B (default: 42)"
     )
     parser.add_argument(
         "-o", "--output",
@@ -155,8 +162,8 @@ def _precompute_static_features(model, model_name, images_tensor, batch_size, de
 
 
 def run_experiment(model_name, pool_type, use_morph, name, epochs, batch_size, lr,
-                   metric, stat_window, train_dataset, test_dataset):
-    set_seed(42)
+                   metric, stat_window, train_dataset, test_dataset, seed=42):
+    set_seed(seed)
     if model_name == "simple":
         model = CNNClassifier(use_morph_pool=use_morph, metric=metric,
                               stat_window=stat_window, pool_type=pool_type).to(DEVICE)
@@ -171,7 +178,7 @@ def run_experiment(model_name, pool_type, use_morph, name, epochs, batch_size, l
     use_foreach = DEVICE.type in ("cuda", "cpu")
     optimizer = optim.AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=lr, foreach=use_foreach)
 
-    print(f"\n================ Ejecutando: {name} ({epochs} épocas) ================")
+    print(f"\n================ Ejecutando: {name} ({epochs} épocas | Seed: {seed}) ================")
     start_time = time.time()
 
     # Precalcular etapa sin parámetros entrenables (Pooling RGB + capas congeladas)
@@ -184,7 +191,7 @@ def run_experiment(model_name, pool_type, use_morph, name, epochs, batch_size, l
     test_size = len(test_y)
 
     # Reiniciar semilla antes del bucle de épocas para garantizar idéntico barajado A/B
-    set_seed(42)
+    set_seed(seed)
     epoch_losses = []
 
     for epoch in range(epochs):
@@ -276,9 +283,28 @@ if __name__ == '__main__':
     resolution = "112x112" if args.model == "simple" else "224x224"
     stat_window = args.stat_window if args.stat_window == "global" else int(args.stat_window)
 
+    # Resolver alias de datasets (acepta 'archive2', 'archive 2', '2', 'archive3', 'archive 3', '3', etc.)
+    raw_dir = args.data_dir.strip()
+    candidates_map = {
+        "1": ["archive", "archive1", "archive 1"],
+        "archive": ["archive", "archive1", "archive 1"],
+        "archive1": ["archive", "archive1", "archive 1"],
+        "archive 1": ["archive", "archive1", "archive 1"],
+        "2": ["archive2", "archive 2"],
+        "archive2": ["archive2", "archive 2"],
+        "archive 2": ["archive2", "archive 2"],
+        "3": ["archive3", "archive 3"],
+        "archive3": ["archive3", "archive 3"],
+        "archive 3": ["archive3", "archive 3"],
+    }
+    candidates = candidates_map.get(raw_dir.lower(), [raw_dir, raw_dir.replace(" ", "")])
+    data_dir = next((c for c in candidates if os.path.exists(c)), candidates[0])
+    dataset_label = os.path.basename(os.path.normpath(data_dir))
+
     print("\n" + "="*65)
     print(f" INICIO DEL EXPERIMENTO COMPARATIVO A/B (MELANOMA) - {args.model.upper()}")
-    print(f" Épocas: {args.epochs} | Batch Size: {batch_size} | LR: {lr} | Métrica: {args.metric} | Ventana: {args.stat_window}")
+    print(f" Dataset: {dataset_label} | Épocas: {args.epochs} | Batch Size: {batch_size} | LR: {lr}")
+    print(f" Métrica: {args.metric} | Ventana: {args.stat_window} | Pool Baseline: {args.pool.upper()} | Seed: {args.seed}")
     print(f" Dispositivo: {DEVICE_NAME}")
     print("="*65)
 
@@ -287,12 +313,12 @@ if __name__ == '__main__':
         print("    (valores centrados en 0 y negativos). Se recomienda usar 'SMO' o 'VAR' para")
         print("    comparaciones consistentes entre arquitecturas.\n")
 
-    train_dir = os.path.join(args.data_dir, "train")
-    test_dir = os.path.join(args.data_dir, "test")
+    train_dir = os.path.join(data_dir, "train")
+    test_dir = os.path.join(data_dir, "test")
 
     if not os.path.exists(train_dir) or not os.path.exists(test_dir):
-        print(f"\n[!] Error: No se encontraron las carpetas 'train' o 'test' en: {args.data_dir}")
-        print("    Asegúrate de que la ruta sea correcta o especifícala con --data-dir <ruta>\n")
+        print(f"\n[!] Error: No se encontraron las carpetas 'train' o 'test' en: {data_dir}")
+        print("    Ejemplos de uso: -d archive | -d \"archive 2\" | -d \"archive 3\"\n")
         exit(1)
 
     print("\n=== PREPARANDO DATASETS EN RAM (Precarga de aceleración) ===")
@@ -310,7 +336,8 @@ if __name__ == '__main__':
         metric=args.metric,
         stat_window=stat_window,
         train_dataset=train_dataset,
-        test_dataset=test_dataset
+        test_dataset=test_dataset,
+        seed=args.seed
     )
 
     proposed_results = run_experiment(
@@ -324,16 +351,18 @@ if __name__ == '__main__':
         metric=args.metric,
         stat_window=stat_window,
         train_dataset=train_dataset,
-        test_dataset=test_dataset
+        test_dataset=test_dataset,
+        seed=args.seed
     )
 
     report_path = generate_html_report(
         baseline=baseline_results,
         proposed=proposed_results,
         config={
-            "dataset": "ISIC Dermoscopy (Benign vs Malignant)",
+            "dataset": f"ISIC ({dataset_label})",
             "model": args.model,
             "pool": args.pool,
+            "seed": args.seed,
             "batch_size": batch_size,
             "epochs": args.epochs,
             "lr": lr,

@@ -215,7 +215,7 @@ def generate_html_report(baseline, proposed, config, output_path="reporte_experi
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 text-center">
             <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
                 <span class="text-xs text-slate-500 block font-medium">Dataset</span>
-                <span class="text-sm font-bold text-slate-800">ISIC Dermoscopy</span>
+                <span class="text-sm font-bold text-slate-800">{config.get('dataset', 'ISIC Dermoscopy')}</span>
             </div>
             <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
                 <span class="text-xs text-slate-500 block font-medium">Muestras Train</span>
@@ -235,7 +235,7 @@ def generate_html_report(baseline, proposed, config, output_path="reporte_experi
             </div>
             <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
                 <span class="text-xs text-slate-500 block font-medium">Semilla (Seed)</span>
-                <span class="text-sm font-bold text-indigo-600 font-mono">42 (Fija)</span>
+                <span class="text-sm font-bold text-indigo-600 font-mono">{config.get('seed', 42)} (Fija)</span>
             </div>
         </div>
     </header>
