@@ -27,9 +27,8 @@ class AdaptiveMorphPooling2d(nn.Module):
         # --- 2. Determinar el tensor sobre el que se calcula el descriptor ---
         if self.stat_window == 'global':
             # Caso especial: Imagen completa
-            # Calculamos la varianza/media/etc. global por canal
-            x_stat = x.view(B, C, -1).unsqueeze(-1)  # [B, C, H*W, 1] -> Aplanamos la imagen
-            # Nota: para que el descriptor funcione, calculamos sobre los H*W valores
+            # Agrupamos todos los píxeles (H*W) en la ÚLTIMA dimensión para que dim=-1 funcione
+            x_stat = x.view(B, C, 1, 1, -1)  # Tamaño: [B, C, 1, 1, H*W]
             
         elif self.stat_window is None or self.stat_window == self.kernel_size:
             # Caso base: misma ventana que el pooling (2x2)
@@ -70,8 +69,9 @@ class AdaptiveMorphPooling2d(nn.Module):
         # Si es global, phi es [B, C, 1, 1] (o [B, C, H*W, 1] si no lo ajustamos).
         # Lo expandimos a [B, C, H_out, W_out, 1] para que coincida con x_win
         if self.stat_window == 'global':
-            phi = phi.mean(dim=-1, keepdim=True)  # [B, C, 1, 1]
-            phi = phi.expand(B, C, H_out, W_out, 1)
+                    # Como x_stat era [B, C, 1, 1, H*W], el descriptor retornó [B, C, 1, 1, 1].
+                    # Simplemente lo expandimos a la cuadrícula de salida.
+                    phi = phi.expand(B, C, H_out, W_out, 1)
 
         # --- 5. Vector de pesos psi con manejo de regiones planas ---
         sum_phi = torch.sum(phi, dim=1, keepdim=True)
