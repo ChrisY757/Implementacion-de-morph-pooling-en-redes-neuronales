@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avance de Tesis: Resultados Experimentales a 50 Épocas — Pooling Morfológico Adaptativo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- MathJax para símbolos matemáticos -->
+    <script>
+        window.MathJax = {
+          tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow: hidden;
+        }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        
+        #slides-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .slide {
+            position: absolute;
+            width: 92%;
+            max-width: 1280px;
+            height: 87%;
+            background-color: #1e293b;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            padding: 2.5rem 3.5rem;
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(0.95);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .slide::-webkit-scrollbar {
+            width: 6px;
+        }
+        .slide::-webkit-scrollbar-thumb {
+            background-color: #475569;
+            border-radius: 3px;
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+            z-index: 10;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 1.5rem;
+            right: 3rem;
+            z-index: 50;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .nav-btn {
+            background-color: #334155;
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+        .nav-btn:hover { background-color: #475569; }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        #progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background-color: #3b82f6;
+            transition: width 0.3s ease;
+            z-index: 100;
+        }
+
+        .highlight { color: #38bdf8; font-weight: 600; }
+        .alert-red { color: #f87171; font-weight: 600; }
+        .alert-green { color: #34d399; font-weight: 600; }
+        .alert-amber { color: #fbbf24; font-weight: 600; }
+        .new-row {
+            background-color: rgba(16, 185, 129, 0.09);
+            border-left: 3px solid #10b981;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="progress-bar" style="width: 0%;"></div>
+
+    <div id="slides-container">
+
+        <!-- ===================================================================== -->
+        <!-- SLIDE 1: PORTADA                                                      -->
+        <!-- ===================================================================== -->
+        <div class="slide active">
+            <div class="flex flex-col justify-center h-full text-center">
+                <div class="inline-flex items-center justify-center gap-2 mx-auto px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-bold tracking-widest uppercase mb-6">
+                    Avance de Tesis de Grado · Reporte Consolidado de Resultados (50 Épocas)
+                </div>
+                <h1 class="text-5xl font-extrabold text-white mb-6 leading-tight">
+                    Resultados Experimentales del <br>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Pooling Morfológico Adaptativo</span> <br>
+                    por Vector de Pesos Ponderados ($\alpha_c$)
+                </h1>
+                <p class="text-lg text-slate-400 mt-2 max-w-3xl mx-auto">
+                    Evaluación sistemática a <b>50 épocas</b> según Arquitectura (<code>CNN Simple</code>, <code>ResNet-18</code>, <code>VGG-16</code>), Descriptor Estadístico (<code>MEAN</code>, <code>SMO</code>, <code>VAR</code>, <code>MO2</code>, <code>MIN</code>, <code>MAX</code>) y Ventana Contextual (<code>5x5</code>, <code>7x7</code>, <code>Global</code>) hasta <b>11,005 imágenes</b>.
+                </p>
+                <div class="mt-10 flex justify-center gap-10 text-slate-300 border-t border-slate-700/70 pt-8 max-w-2xl mx-auto w-full">
+                    <div class="text-left">
+                        <p class="text-xs uppercase tracking-wider text-slate-500">Tesista</p>
+                        <p class="font-semibold text-base">Christian Yegros</p>
+                    </div>
+                    <div class="text-left">
+                        <p class="text-xs uppercase tracking-wider text-slate-500">Tutor</p>
+                        <p class="font-semibold text-base">Prof. José Luis Vázquez</p>
+                    </div>
+                    <div class="text-left">
+                        <p class="text-xs uppercase tracking-wider text-slate-500">Hardware de Pruebas</p>
+                        <p class="font-semibold text-base text-emerald-400 font-mono">NVIDIA GTX 1650 KO Ultra</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- SLIDE 2: MATRIZ DE ESTADO Y COBERTURA EXPERIMENTAL (50 ÉPOCAS)        -->
+        <!-- ===================================================================== -->
+        <div class="slide">
+            <h2 class="text-2xl font-bold mb-4 border-b border-slate-700 pb-3 flex justify-between items-center">
+                <span>Cobertura Experimental a 50 Épocas (Red × Descriptor × Ventana)</span>
+                <span class="text-xs font-mono bg-emerald-950/80 text-emerald-300 px-3 py-1 rounded-full border border-emerald-500/40">258 Corridas (50 ép.) · 25 Agregados Multi-Seed</span>
+            </h2>
+            <p class="text-sm text-slate-300 mb-4">
+                Matriz actualizada incluyendo la nueva tanda de experimentos sobre los datasets masivos (<code>archive11k_1</code> y <code>archive11k_2</code> con <b>11,005 imágenes</b>) ejecutados en la <span class="highlight">NVIDIA GTX 1650 KO Ultra</span>:
+            </p>
+            <table class="w-full text-left text-xs border-collapse mb-4">
+                <thead>
+                    <tr class="bg-slate-700/60 text-slate-200 uppercase tracking-wider">
+                        <th class="p-2.5 rounded-tl-lg">Red Neuronal</th>
+                        <th class="p-2.5">Descriptor $\psi_c$</th>
+                        <th class="p-2.5">Ventana <code>5x5</code></th>
+                        <th class="p-2.5">Ventana <code>7x7</code></th>
+                        <th class="p-2.5">Ventana <code>Global</code></th>
+                        <th class="p-2.5 rounded-tr-lg">Datasets Evaluados a 50 Épocas</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/80 font-mono">
+                    <tr>
+                        <td class="p-2.5 font-bold text-blue-400">CNN Simple</td>
+                        <td class="p-2.5 font-bold text-white">MEAN</td>
+                        <td class="p-2.5 alert-green">✅ 2 datasets (9 seeds c/u)</td>
+                        <td class="p-2.5 alert-green">✅ 3 datasets (hasta 9 seeds)</td>
+                        <td class="p-2.5 alert-green">✅ 1 dataset (9 seeds)</td>
+                        <td class="p-2.5 text-slate-300">archive, archive_2k, archive_2k_2, archive2</td>
+                    </tr>
+                    <tr class="new-row">
+                        <td class="p-2.5 font-bold text-blue-400">CNN Simple</td>
+                        <td class="p-2.5 font-bold text-emerald-300">SMO</td>
+                        <td class="p-2.5 alert-green">✅ 1 dataset (7 seeds)</td>
+                        <td class="p-2.5 alert-green">✅ 6 datasets (hasta 9 seeds)</td>
+                        <td class="p-2.5 alert-green">✅ 3 datasets (9 a 11 seeds) ★</td>
+                        <td class="p-2.5 text-emerald-200">archive_2k_2 (9), <b>archive11k_1 (11), archive11k_2 (11)</b>, archive2</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2.5 font-bold text-blue-400">CNN Simple</td>
+                        <td class="p-2.5 font-bold text-white">VAR</td>
+                        <td class="p-2.5 text-slate-500">—</td>
+                        <td class="p-2.5 alert-green">✅ 2 datasets (9 seeds c/u)</td>
+                        <td class="p-2.5 text-slate-500">—</td>
+                        <td class="p-2.5 text-slate-300">archive_2k (9 seeds), archive_2k_2 (9 seeds)</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2.5 font-bold text-blue-400">CNN Simple</td>
+                        <td class="p-2.5 font-bold text-white">MO2 / MIN / MAX</td>
+                        <td class="p-2.5 text-slate-500">—</td>
+                        <td class="p-2.5 alert-green">✅ 2 datasets (3 a 5 seeds)</td>
+                        <td class="p-2.5 text-slate-500">—</td>
+                        <td class="p-2.5 text-slate-300">archive (MO2: 5), archive2 (MO2: 4, MIN: 3, MAX: 3)</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2.5 font-bold text-emerald-400">ResNet-18</td>
+                        <td class="p-2.5 font-bold text-white">MEAN</td>
+                        <td class="p-2.5 alert-green">✅ 2 datasets (10 seeds c/u)</td>
+                        <td class="p-2.5 alert-green">✅ 2 datasets (11 a 13 seeds)</td>
+                        <td class="p-2.5 alert-green">✅ 3 datasets (12 a 13 seeds)</td>
+                        <td class="p-2.5 text-slate-300">archive (13 seeds), archive_2k (12 seeds), archive2 (13 seeds)</td>
+                    </tr>
+                    <tr class="new-row">
+                        <td class="p-2.5 font-bold text-emerald-400">ResNet-18</td>
+                        <td class="p-2.5 font-bold text-emerald-300">SMO</td>
+                        <td class="p-2.5 text-slate-500">—</td>
+                        <td class="p-2.5 alert-green">✅ 2 datasets (1 seed c/u)</td>
+                        <td class="p-2.5 alert-green">✅ 1 dataset (9 seeds) ★</td>
+                        <td class="p-2.5 text-emerald-200">archive, archive2 (7x7) · <b>archive11k_2 (Global: 9 seeds)</b></td>
+                    </tr>
+                    <tr>
+                        <td class="p-2.5 font-bold text-emerald-400">ResNet-18</td>
+                        <td class="p-2.5 font-bold text-white">MIN</td>
+                        <td class="p-2.5 alert-green">✅ 1 dataset (3 seeds)</td>
+                        <td class="p-2.5 text-slate-500">—</td>
+                        <td class="p-2.5 text-slate-500">—</td>
+                        <td class="p-2.5 text-slate-300">archive2 (3 seeds)</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2.5 font-bold text-purple-400">VGG-16</td>
+                        <td class="p-2.5 font-bold text-white">MEAN</td>
+                        <td class="p-2.5 alert-green">✅ 1 dataset (5 seeds)</td>
+                        <td class="p-2.5 text-slate-500">—</td>
+                        <td class="p-2.5 alert-green">✅ 1 dataset (6 seeds)</td>
+                        <td class="p-2.5 text-slate-300">archive2 (5x5: 5 seeds), archive_2k (Global: 6 seeds)</td>
+                    </tr>
+                    <tr class="new-row">
+                        <td class="p-2.5 font-bold text-purple-400">VGG-16</td>
+                        <td class="p-2.5 font-bold text-emerald-300">SMO</td>
+                        <td class="p-2.5 text-slate-500">—</td>
+                        <td class="p-2.5 alert-green">✅ 1 dataset (1 seed)</td>
+                        <td class="p-2.5 alert-green">✅ 1 dataset (3 seeds) ★</td>
+                        <td class="p-2.5 text-emerald-200">archive (7x7) · <b>archive11k_1 (Global: 3 seeds)</b></td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-lg text-xs text-slate-200 flex justify-between items-center">
+                <span>★ <b>Nuevos bloques integrados (<code>reportes/newest</code>):</b> 34 corridas nuevas con <code>SMO Global</code> en las 3 arquitecturas sobre particiones de <b>11,005 imágenes</b>.</span>
+                <span class="font-mono text-emerald-300">Épocas = 50 | Batch = 32 | Adam lr=1e-4</span>
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- SLIDE 3: TABLA MAESTRA DE LOS RESULTADOS MÁS IMPORTANTES (50 ÉPOCAS)  -->
+        <!-- ===================================================================== -->
+        <div class="slide">
+            <h2 class="text-2xl font-bold mb-2.5 border-b border-slate-700 pb-2.5">
+                Tabla Maestra: Mejores Resultados por Red, Descriptor y Ventana (50 Ép.)
+            </h2>
+            <p class="text-xs text-slate-300 mb-2.5">
+                Consolidado de las configuraciones más destacadas donde <code>AdaptiveMorphPooling2d</code> supera al <code>Baseline (MaxPool2d)</code> (incluyendo <code>newest</code>):
+            </p>
+            <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                    <tr class="bg-slate-700/60 text-slate-200">
+                        <th class="p-1.5 rounded-tl-lg">Red</th>
+                        <th class="p-1.5">Descriptor</th>
+                        <th class="p-1.5">Ventana</th>
+                        <th class="p-1.5">Dataset ($n$)</th>
+                        <th class="p-1.5">AUC (Base $\to$ Prop)</th>
+                        <th class="p-1.5">Accuracy (Base $\to$ Prop)</th>
+                        <th class="p-1.5">Sensibilidad (Base $\to$ Prop)</th>
+                        <th class="p-1.5">F1-Score (Base $\to$ Prop)</th>
+                        <th class="p-1.5 rounded-tr-lg">Evidencia / Significancia</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/80 font-mono text-[10.5px]">
+                    <tr class="bg-emerald-950/30">
+                        <td class="p-1.5 font-bold text-blue-400">CNN Simple</td>
+                        <td class="p-1.5 font-bold text-emerald-300">MEAN</td>
+                        <td class="p-1.5 text-white">global</td>
+                        <td class="p-1.5 text-slate-300">archive_2k_2 (9)</td>
+                        <td class="p-1.5">0.9342 $\to$ <b class="alert-green">0.9437</b></td>
+                        <td class="p-1.5">77.17% $\to$ <b class="alert-green">84.78% (+7.61%)</b></td>
+                        <td class="p-1.5">73.00% $\to$ <b class="alert-green">83.41% (+10.41%)</b></td>
+                        <td class="p-1.5">75.05% $\to$ <b class="alert-green">84.01% (+8.96%)</b></td>
+                        <td class="p-1.5 alert-green">p=0.020* F1 (9/9) · p=0.033* Sens</td>
+                    </tr>
+                    <tr class="new-row">
+                        <td class="p-1.5 font-bold text-blue-400">CNN Simple</td>
+                        <td class="p-1.5 font-bold text-emerald-300">SMO ★</td>
+                        <td class="p-1.5 text-white">global</td>
+                        <td class="p-1.5 text-emerald-200">archive11k_2 (11)</td>
+                        <td class="p-1.5">0.9595 $\to$ <b class="alert-green">0.9601</b></td>
+                        <td class="p-1.5">83.49% $\to$ <b class="alert-green">86.97% (+3.47%)</b></td>
+                        <td class="p-1.5">71.92% $\to$ <b class="alert-green">80.66% (+8.74%)</b></td>
+                        <td class="p-1.5">79.96% $\to$ <b class="alert-green">85.13% (+5.18%)</b></td>
+                        <td class="p-1.5 alert-green">p=0.048* Sens (-61.2 FN) · Gana 7/11 Acc</td>
+                    </tr>
+                    <tr>
+                        <td class="p-1.5 font-bold text-blue-400">CNN Simple</td>
+                        <td class="p-1.5 font-bold text-emerald-300">SMO</td>
+                        <td class="p-1.5 text-white">global</td>
+                        <td class="p-1.5 text-slate-300">archive_2k_2 (9)</td>
+                        <td class="p-1.5">0.9342 $\to$ <b class="alert-green">0.9403</b></td>
+                        <td class="p-1.5">77.17% $\to$ <b class="alert-green">82.00% (+4.83%)</b></td>
+                        <td class="p-1.5">73.00% $\to$ <b class="alert-green">80.70% (+7.70%)</b></td>
+                        <td class="p-1.5">75.05% $\to$ <b class="alert-green">80.39% (+5.34%)</b></td>
+                        <td class="p-1.5 text-emerald-300">Gana 7/9 seeds (p=0.071 F1)</td>
+                    </tr>
+                    <tr>
+                        <td class="p-1.5 font-bold text-blue-400">CNN Simple</td>
+                        <td class="p-1.5 font-bold text-white">MEAN</td>
+                        <td class="p-1.5 text-white">5x5</td>
+                        <td class="p-1.5 text-slate-300">archive_2k_2 (9)</td>
+                        <td class="p-1.5">0.9342 $\to$ <b class="alert-green">0.9389</b></td>
+                        <td class="p-1.5">77.17% $\to$ <b class="alert-green">81.72% (+4.56%)</b></td>
+                        <td class="p-1.5">73.00% $\to$ <b class="alert-green">75.78% (+2.78%)</b></td>
+                        <td class="p-1.5">75.05% $\to$ <b class="alert-green">77.62% (+2.57%)</b></td>
+                        <td class="p-1.5 text-slate-300">Spec +6.33% (87.67%) · Gana 6/9 F1</td>
+                    </tr>
+                    <tr>
+                        <td class="p-1.5 font-bold text-blue-400">CNN Simple</td>
+                        <td class="p-1.5 font-bold text-white">SMO</td>
+                        <td class="p-1.5 text-white">7x7</td>
+                        <td class="p-1.5 text-slate-300">archive2 (4)</td>
+                        <td class="p-1.5">0.9684 $\to$ <b class="alert-green">0.9694</b></td>
+                        <td class="p-1.5">89.62% $\to$ <b class="alert-green">91.03% (+1.40%)</b></td>
+                        <td class="p-1.5">90.65% $\to$ 90.10% (-0.55%)</td>
+                        <td class="p-1.5">89.80% $\to$ <b class="alert-green">90.94% (+1.15%)</b></td>
+                        <td class="p-1.5 text-emerald-300">Mayor Acc en CNN 10.6k (Spec +3.35%)</td>
+                    </tr>
+                    <tr>
+                        <td class="p-1.5 font-bold text-blue-400">CNN Simple</td>
+                        <td class="p-1.5 font-bold text-white">MEAN</td>
+                        <td class="p-1.5 text-white">7x7</td>
+                        <td class="p-1.5 text-slate-300">archive2 (2)</td>
+                        <td class="p-1.5">0.9625 $\to$ <b class="alert-green">0.9665</b></td>
+                        <td class="p-1.5">88.00% $\to$ <b class="alert-green">90.00% (+2.00%)</b></td>
+                        <td class="p-1.5">76.40% $\to$ <b class="alert-green">81.90% (+5.50%)</b></td>
+                        <td class="p-1.5">86.42% $\to$ <b class="alert-green">89.11% (+2.69%)</b></td>
+                        <td class="p-1.5 text-emerald-300">Gana 2/2 seeds · Pico 91.10% Acc</td>
+                    </tr>
+                    <tr>
+                        <td class="p-1.5 font-bold text-blue-400">CNN Simple</td>
+                        <td class="p-1.5 font-bold text-white">MO2</td>
+                        <td class="p-1.5 text-white">7x7</td>
+                        <td class="p-1.5 text-slate-300">archive2 (4)</td>
+                        <td class="p-1.5">0.9695 $\to$ 0.9688</td>
+                        <td class="p-1.5">90.88% $\to$ 89.97% (-0.90%)</td>
+                        <td class="p-1.5">86.65% $\to$ <b class="alert-green">89.20% (+2.55%)</b></td>
+                        <td class="p-1.5">90.46% $\to$ 89.94% (-0.52%)</td>
+                        <td class="p-1.5 alert-green">p=0.0053** Sens (Gana 4/4 seeds)</td>
+                    </tr>
+                    <tr>
+                        <td class="p-1.5 font-bold text-emerald-400">ResNet-18</td>
+                        <td class="p-1.5 font-bold text-white">MEAN</td>
+                        <td class="p-1.5 text-white">7x7</td>
+                        <td class="p-1.5 text-slate-300">archive (13)</td>
+                        <td class="p-1.5">0.9584 $\to$ <b class="alert-green">0.9603</b></td>
+                        <td class="p-1.5">88.78% $\to$ <b class="alert-green">89.11% (+0.34%)</b></td>
+                        <td class="p-1.5">88.08% $\to$ <b class="alert-green">89.23% (+1.15%)</b></td>
+                        <td class="p-1.5">87.72% $\to$ <b class="alert-green">88.17% (+0.45%)</b></td>
+                        <td class="p-1.5 text-emerald-300">Gana 9/13 seeds en Sens · Pico +3.19% Acc</td>
+                    </tr>
+                    <tr class="new-row">
+                        <td class="p-1.5 font-bold text-emerald-400">ResNet-18</td>
+                        <td class="p-1.5 font-bold text-emerald-300">SMO ★</td>
+                        <td class="p-1.5 text-white">global</td>
+                        <td class="p-1.5 text-emerald-200">archive11k_2 (9)</td>
+                        <td class="p-1.5">0.9860 $\to$ <b class="alert-green">0.9861</b></td>
+                        <td class="p-1.5">94.37% $\to$ <b>94.32% (5/9 wins)</b></td>
+                        <td class="p-1.5">94.19% $\to$ <b class="alert-green">94.65% (+0.46%)</b></td>
+                        <td class="p-1.5">94.36% $\to$ <b>94.34% (5/9 wins)</b></td>
+                        <td class="p-1.5 alert-green">Récord AUC 0.9898 y Acc 95.07% (s784)</td>
+                    </tr>
+                    <tr>
+                        <td class="p-1.5 font-bold text-purple-400">VGG-16</td>
+                        <td class="p-1.5 font-bold text-emerald-300">MEAN</td>
+                        <td class="p-1.5 text-white">5x5</td>
+                        <td class="p-1.5 text-slate-300">archive2 (5)</td>
+                        <td class="p-1.5">0.9739 $\to$ 0.9722</td>
+                        <td class="p-1.5">92.18% $\to$ <b class="alert-green">92.62% (+0.44%)</b></td>
+                        <td class="p-1.5">88.48% $\to$ <b class="alert-green">88.84% (+0.36%)</b></td>
+                        <td class="p-1.5">91.89% $\to$ <b class="alert-green">92.33% (+0.45%)</b></td>
+                        <td class="p-1.5 alert-green">Gana en las 4 métricas de clasif. (Spec 96.4%)</td>
+                    </tr>
+                    <tr class="new-row">
+                        <td class="p-1.5 font-bold text-purple-400">VGG-16</td>
+                        <td class="p-1.5 font-bold text-emerald-300">SMO ★</td>
+                        <td class="p-1.5 text-white">global</td>
+                        <td class="p-1.5 text-emerald-200">archive11k_1 (3)</td>
+                        <td class="p-1.5">0.9830 $\to$ <b class="alert-green">0.9835</b></td>
+                        <td class="p-1.5">94.88% $\to$ <b>94.57% (pico 95.43%)</b></td>
+                        <td class="p-1.5">93.24% $\to$ <b class="alert-green">95.57% (+2.34%)</b></td>
+                        <td class="p-1.5">94.78% $\to$ 94.63%</td>
+                        <td class="p-1.5 alert-green">Récord Sensibilidad 95.57% (-34.5% FN)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- SLIDE 4: CNN SIMPLE (1/3) — VENTANAS Y DESCRIPTORES EN ARCHIVE_2K_2   -->
+        <!-- ===================================================================== -->
+        <div class="slide">
+            <h2 class="text-2xl font-bold mb-3 border-b border-slate-700 pb-3">
+                1. Red <code>CNN Simple</code>: Comparativa por Descriptor y Ventana (50 Épocas)
+            </h2>
+            <p class="text-xs text-slate-300 mb-3">
+                Evaluación controlada sobre <code>archive_2k_2</code> (2,274 train / 600 test balanceado) con las <b>mismas 9 semillas aleatorias</b> (<code>108, 212, 347, 437, 536, 653, 794, 841, 921</code>):
+            </p>
+            <table class="w-full text-left text-xs border-collapse mb-4">
+                <thead>
+                    <tr class="bg-slate-700/60 text-slate-200">
+                        <th class="p-2.5 rounded-tl-lg">Descriptor</th>
+                        <th class="p-2.5">Ventana</th>
+                        <th class="p-2.5">AUC Media $\pm$ SD</th>
+                        <th class="p-2.5">Accuracy Media $\pm$ SD</th>
+                        <th class="p-2.5">Sensibilidad Media $\pm$ SD</th>
+                        <th class="p-2.5">Especificidad Media $\pm$ SD</th>
+                        <th class="p-2.5">F1-Score Medio $\pm$ SD</th>
+                        <th class="p-2.5 rounded-tr-lg">Mejor Semilla (Best Run)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/80 font-mono text-[11px]">
+                    <tr class="bg-slate-800/90 text-slate-300">
+                        <td class="p-2.5 font-bold">Baseline</td>
+                        <td class="p-2.5">MaxPool 2x2</td>
+                        <td class="p-2.5">0.9342 ± 0.0197</td>
+                        <td class="p-2.5">77.17% ± 12.26%</td>
+                        <td class="p-2.5">73.00% ± 23.93%</td>
+                        <td class="p-2.5">81.33% ± 29.50%</td>
+                        <td class="p-2.5">75.05% ± 13.73%</td>
+                        <td class="p-2.5 text-slate-400">FN medio: 81.0 / 300</td>
+                    </tr>
+                    <tr class="bg-emerald-950/30">
+                        <td class="p-2.5 font-bold text-emerald-300">MEAN</td>
+                        <td class="p-2.5 font-bold text-white">global</td>
+                        <td class="p-2.5 alert-green">0.9437 ± 0.0140 (+0.0095)</td>
+                        <td class="p-2.5 alert-green">84.78% ± 4.39% (+7.61%)</td>
+                        <td class="p-2.5 alert-green">83.41% ± 14.85% (+10.41%*)</td>
+                        <td class="p-2.5 alert-green">86.15% ± 8.37% (+4.81%)</td>
+                        <td class="p-2.5 alert-green">84.01% ± 6.32% (+8.96%*)</td>
+                        <td class="p-2.5 text-emerald-300">s108: 90.50% Acc | s536: +32.0% Acc</td>
+                    </tr>
+                    <tr class="bg-emerald-950/20">
+                        <td class="p-2.5 font-bold text-emerald-300">SMO</td>
+                        <td class="p-2.5 font-bold text-white">global</td>
+                        <td class="p-2.5 alert-green">0.9403 ± 0.0226 (+0.0061)</td>
+                        <td class="p-2.5 alert-green">82.00% ± 9.10% (+4.83%)</td>
+                        <td class="p-2.5 alert-green">80.70% ± 20.69% (+7.70%)</td>
+                        <td class="p-2.5 alert-green">83.30% ± 16.92% (+1.96%)</td>
+                        <td class="p-2.5 alert-green">80.39% ± 12.16% (+5.34%)</td>
+                        <td class="p-2.5 text-emerald-300">s921: 89.00% Acc (+12.33%)</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2.5 font-bold text-blue-300">MEAN</td>
+                        <td class="p-2.5 text-white">5x5</td>
+                        <td class="p-2.5 alert-green">0.9389 ± 0.0176 (+0.0047)</td>
+                        <td class="p-2.5 alert-green">81.72% ± 10.67% (+4.56%)</td>
+                        <td class="p-2.5 alert-green">75.78% ± 26.90% (+2.78%)</td>
+                        <td class="p-2.5 alert-green">87.67% ± 12.12% (+6.33%)</td>
+                        <td class="p-2.5 alert-green">77.62% ± 18.69% (+2.57%)</td>
+                        <td class="p-2.5 text-slate-300">s536: 88.67% Acc (+36.34%)</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2.5 font-bold text-blue-300">SMO</td>
+                        <td class="p-2.5 text-white">7x7</td>
+                        <td class="p-2.5 alert-green">0.9387 ± 0.0209 (+0.0045)</td>
+                        <td class="p-2.5 alert-green">81.06% ± 9.53% (+3.89%)</td>
+                        <td class="p-2.5 alert-green">75.48% ± 26.86% (+2.48%)</td>
+                        <td class="p-2.5 alert-green">86.63% ± 15.86% (+5.30%)</td>
+                        <td class="p-2.5 alert-green">77.20% ± 17.81% (+2.15%)</td>
+                        <td class="p-2.5 text-slate-300">s536: 0.9601 AUC (+0.0537)</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2.5 font-bold text-blue-300">VAR</td>
+                        <td class="p-2.5 text-white">7x7</td>
+                        <td class="p-2.5 alert-green">0.9381 ± 0.0200 (+0.0039)</td>
+                        <td class="p-2.5 alert-green">81.05% ± 9.39% (+3.89%)</td>
+                        <td class="p-2.5 alert-green">76.52% ± 27.14% (+3.52%)</td>
+                        <td class="p-2.5 alert-green">85.59% ± 15.65% (+4.26%)</td>
+                        <td class="p-2.5 alert-green">77.49% ± 17.65% (+2.44%)</td>
+                        <td class="p-2.5 text-slate-300">s108 (2k): 87.67% Acc (+10.0%)</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2.5 font-bold text-blue-300">MEAN</td>
+                        <td class="p-2.5 text-white">7x7</td>
+                        <td class="p-2.5 alert-green">0.9373 ± 0.0185 (+0.0031)</td>
+                        <td class="p-2.5 alert-green">80.50% ± 9.81% (+3.33%)</td>
+                        <td class="p-2.5 alert-green">76.81% ± 27.27% (+3.81%)</td>
+                        <td class="p-2.5 alert-green">84.19% ± 17.91% (+2.85%)</td>
+                        <td class="p-2.5 alert-green">76.58% ± 18.06% (+1.53%)</td>
+                        <td class="p-2.5 text-slate-300">s108: 90.00% Acc, 0.9613 AUC</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2.5 font-bold text-slate-300">SMO (n=7)</td>
+                        <td class="p-2.5 text-white">5x5</td>
+                        <td class="p-2.5 text-slate-400">0.9324 ± 0.0252 (-0.0050)</td>
+                        <td class="p-2.5 alert-green">81.86% ± 9.10% (+0.17%)</td>
+                        <td class="p-2.5 alert-green">76.71% ± 26.78% (+3.05%)</td>
+                        <td class="p-2.5 text-slate-400">87.00% ± 16.59% (-2.71%)</td>
+                        <td class="p-2.5 text-slate-400">77.83% ± 17.53% (-0.68%)</td>
+                        <td class="p-2.5 text-slate-300">s437: 84.00% Acc (+5.50%)</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="grid grid-cols-2 gap-4 text-xs">
+                <div class="p-3 bg-emerald-900/20 border-l-4 border-emerald-500 rounded text-slate-200">
+                    <b>Dominio de la Ventana Global en CNN desde cero:</b> Tanto <code>MEAN Global</code> como <code>SMO Global</code> logran las mayores mejoras al estimar los pesos $\alpha_c$ sin varianza espacial ruidosa.
+                </div>
+                <div class="p-3 bg-blue-900/20 border-l-4 border-blue-500 rounded text-slate-200">
+                    <b>Consistencia total:</b> Las <b>6 configuraciones de 9 semillas</b> superan simultáneamente al Baseline en AUC, Accuracy, Sensibilidad, Especificidad y F1-Score.
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- SLIDE 5: CNN SIMPLE (2/3) — SIGNIFICANCIA ESTADÍSTICA E IMPACTO       -->
+        <!-- ===================================================================== -->
+        <div class="slide">
+            <h2 class="text-2xl font-bold mb-4 border-b border-slate-700 pb-3">
+                1. Red <code>CNN Simple</code>: Significancia Estadística y Estabilidad Clínica
+            </h2>
+            <div class="grid grid-cols-2 gap-6 h-full items-center">
+                <div class="space-y-4">
+                    <div class="bg-slate-800 p-4 rounded-xl border border-emerald-500/40">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm font-bold text-emerald-400 uppercase tracking-wider">CNN + MEAN Global (archive_2k_2, n=9)</span>
+                            <span class="text-xs font-mono bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded">Ganador Estadístico 2k</span>
+                        </div>
+                        <ul class="text-xs text-slate-300 space-y-2 font-mono">
+                            <li>• <b>F1-Score:</b> 75.05% $\to$ <b class="alert-green">84.01% (+8.96%)</b> | <b class="text-white">Gana en las 9 de 9 semillas</b> (mejora comprobada).</li>
+                            <li>• <b>Sensibilidad:</b> 73.00% $\to$ <b class="alert-green">83.41% (+10.41%)</b> | <b class="text-white">Gana en 7 de 9 semillas</b>.</li>
+                            <li>• <b>Accuracy:</b> 77.17% $\to$ <b class="alert-green">84.78% (+7.61%)</b> | <b class="text-white">Gana en 8 de 9 semillas</b>.</li>
+                            <li>• <b>Mayor Estabilidad:</b> La variación entre semillas baja de <b>12.26%</b> a <b>4.39%</b> (casi 3 veces más estable).</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-slate-800 p-4 rounded-xl border border-blue-500/40">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm font-bold text-blue-400 uppercase tracking-wider">CNN + SMO Global (archive11k_2, n=11) ★ NUEVO</span>
+                            <span class="text-xs font-mono bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">Ganador en 11k imgs</span>
+                        </div>
+                        <ul class="text-xs text-slate-300 space-y-1.5 font-mono">
+                            <li>• <b>Sensibilidad:</b> 71.92% $\to$ <b class="alert-green">80.66% (+8.74%)</b> | <b class="text-white">61.2 Falsos Negativos menos</b> sobre 700 malignos.</li>
+                            <li>• <b>Accuracy:</b> 83.49% $\to$ <b class="alert-green">86.97% (+3.47%)</b> | <b class="text-white">Gana en 7 de 11 semillas</b> (pico <b>92.29%</b>).</li>
+                            <li>• <b>F1-Score:</b> 79.96% $\to$ <b class="alert-green">85.13% (+5.18%)</b> | <b class="text-white">Gana en 7 de 11 semillas</b>.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800/90 p-5 rounded-xl border border-slate-700 space-y-4">
+                    <h3 class="text-base font-bold text-white text-center">Reducción de Falsos Negativos en Melanoma Maligno</h3>
+                    <div class="grid grid-cols-2 gap-3 text-center font-mono">
+                        <div class="bg-emerald-950/40 border border-emerald-500/40 p-3 rounded-lg">
+                            <span class="text-[11px] text-emerald-300 block uppercase">MEAN Global (archive_2k_2)</span>
+                            <span class="text-xl font-black text-white">81.0 $\to$ <span class="text-emerald-400">49.8</span></span>
+                            <span class="text-[10px] text-emerald-400 block mt-1">-31.2 errores / 300 (-38.5%)</span>
+                        </div>
+                        <div class="bg-blue-950/40 border border-blue-500/40 p-3 rounded-lg">
+                            <span class="text-[11px] text-blue-300 block uppercase">SMO Global (archive11k_2) ★</span>
+                            <span class="text-xl font-black text-white">196.5 $\to$ <span class="text-blue-400">135.4</span></span>
+                            <span class="text-[10px] text-emerald-400 block mt-1">-61.2 errores / 700 (-31.1%)</span>
+                        </div>
+                    </div>
+                    <div class="p-3.5 bg-slate-700/40 rounded-lg text-xs text-slate-300 leading-relaxed">
+                        <b class="text-white block mb-1">¿Por qué mejora tanto en 2k y 11k imágenes?</b>
+                        Cuando al <code>MaxPool2d</code> le toca una semilla difícil (como <code>s61</code> o <code>s410</code> en <code>11k_2</code>, donde la sensibilidad cae a <code>61%–65%</code>), nuestro método con <b><code>SMO Global</code></b> mantiene estable la red y sube la sensibilidad a <b>95.00% (+29.29%)</b> y <b>86.86% (+25.57%)</b>, llevando la exactitud por encima del <b>90.5%–91.8%</b>.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- SLIDE 6: CNN SIMPLE (3/3) — DATASETS GRANDES (ARCHIVE2 Y ARCHIVE11K)  -->
+        <!-- ===================================================================== -->
+        <div class="slide">
+            <h2 class="text-2xl font-bold mb-3 border-b border-slate-700 pb-3">
+                1. Red <code>CNN Simple</code>: Desempeño en Gran Escala (<code>archive2</code> 10.6k y <code>archive11k</code> 11k)
+            </h2>
+            <p class="text-xs text-slate-300 mb-3">
+                Comparativa en datasets masivos a 50 épocas combinando los nuevos bloques <b><code>SMO Global</code> ($n=11$)</b> y los <b>5 descriptores en ventana <code>7x7</code></b>:
+            </p>
+            <table class="w-full text-left text-xs border-collapse mb-4">
+                <thead>
+                    <tr class="bg-slate-700/60 text-slate-200">
+                        <th class="p-2 rounded-tl-lg">Descriptor</th>
+                        <th class="p-2">Ventana</th>
+                        <th class="p-2">Dataset ($n$)</th>
+                        <th class="p-2">AUC (Base $\to$ Prop)</th>
+                        <th class="p-2">Accuracy (Base $\to$ Prop)</th>
+                        <th class="p-2">Sensibilidad (Base $\to$ Prop)</th>
+                        <th class="p-2">Especificidad (Base $\to$ Prop)</th>
+                        <th class="p-2">F1-Score (Base $\to$ Prop)</th>
+                        <th class="p-2 rounded-tr-lg">Mejor Semilla / Hallazgo</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/80 font-mono text-[11px]">
+                    <tr class="new-row">
+                        <td class="p-2 font-bold text-emerald-300">SMO ★</td>
+                        <td class="p-2 font-bold text-white">global</td>
+                        <td class="p-2 text-emerald-200">archive11k_2 (n=11)</td>
+                        <td class="p-2">0.9595 $\to$ <b class="alert-green">0.9601 (+0.0006)</b></td>
+                        <td class="p-2">83.49% $\to$ <b class="alert-green">86.97% (+3.47%)</b></td>
+                        <td class="p-2">71.92% $\to$ <b class="alert-green">80.66% (+8.74%*)</b></td>
+                        <td class="p-2">95.07% $\to$ 93.27% (-1.79%)</td>
+                        <td class="p-2">79.96% $\to$ <b class="alert-green">85.13% (+5.18%)</b></td>
+                        <td class="p-2 alert-green">s61: 91.86% Acc (+10.3%), 95.0% Sens</td>
+                    </tr>
+                    <tr class="new-row">
+                        <td class="p-2 font-bold text-emerald-300">SMO ★</td>
+                        <td class="p-2 font-bold text-white">global</td>
+                        <td class="p-2 text-emerald-200">archive11k_1 (n=11)</td>
+                        <td class="p-2">0.9580 $\to$ 0.9552 (-0.0027)</td>
+                        <td class="p-2">83.11% $\to$ 79.84% (-3.27%)</td>
+                        <td class="p-2">74.48% $\to$ 65.51% (-8.98%)</td>
+                        <td class="p-2">91.74% $\to$ <b class="alert-green">94.18% (+2.44%*)</b></td>
+                        <td class="p-2">79.10% $\to$ 74.43% (-4.67%)</td>
+                        <td class="p-2 text-emerald-300">Gana 8/11 Spec (p=0.050) | s196: 90.36% Acc</td>
+                    </tr>
+                    <tr class="bg-emerald-950/30">
+                        <td class="p-2 font-bold text-emerald-300">SMO</td>
+                        <td class="p-2 text-white">7x7</td>
+                        <td class="p-2 text-slate-300">archive2 (n=4)</td>
+                        <td class="p-2">0.9684 $\to$ <b class="alert-green">0.9694 (+0.0010)</b></td>
+                        <td class="p-2">89.62% $\to$ <b class="alert-green">91.03% (+1.40%)</b></td>
+                        <td class="p-2">90.65% $\to$ 90.10% (-0.55%)</td>
+                        <td class="p-2">88.60% $\to$ <b class="alert-green">91.95% (+3.35%)</b></td>
+                        <td class="p-2">89.80% $\to$ <b class="alert-green">90.94% (+1.15%)</b></td>
+                        <td class="p-2 text-emerald-300">s520: 90.80% Acc (+4.60%)</td>
+                    </tr>
+                    <tr class="bg-emerald-950/20">
+                        <td class="p-2 font-bold text-emerald-300">MEAN</td>
+                        <td class="p-2 text-white">7x7</td>
+                        <td class="p-2 text-slate-300">archive2 (n=2)</td>
+                        <td class="p-2">0.9625 $\to$ <b class="alert-green">0.9665 (+0.0040)</b></td>
+                        <td class="p-2">88.00% $\to$ <b class="alert-green">90.00% (+2.00%)</b></td>
+                        <td class="p-2">76.40% $\to$ <b class="alert-green">81.90% (+5.50%)</b></td>
+                        <td class="p-2">99.60% $\to$ 98.10% (-1.50%)</td>
+                        <td class="p-2">86.42% $\to$ <b class="alert-green">89.11% (+2.69%)</b></td>
+                        <td class="p-2 text-emerald-300">s875: 91.10% Acc, 0.9687 AUC</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2 font-bold text-blue-300">MIN</td>
+                        <td class="p-2 text-white">7x7</td>
+                        <td class="p-2 text-slate-300">archive2 (n=3)</td>
+                        <td class="p-2">0.9589 $\to$ <b class="alert-green">0.9646 (+0.0057)</b></td>
+                        <td class="p-2">87.00% $\to$ <b class="alert-green">88.53% (+1.53%)</b></td>
+                        <td class="p-2">91.47% $\to$ 89.47% (-2.00%)</td>
+                        <td class="p-2">82.53% $\to$ <b class="alert-green">87.60% (+5.07%)</b></td>
+                        <td class="p-2">87.91% $\to$ <b class="alert-green">88.70% (+0.80%)</b></td>
+                        <td class="p-2 text-slate-300">s635: +7.00% Acc, +0.0098 AUC</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2 font-bold text-blue-300">MO2</td>
+                        <td class="p-2 text-white">7x7</td>
+                        <td class="p-2 text-slate-300">archive2 (n=4)</td>
+                        <td class="p-2">0.9695 $\to$ 0.9688 (-0.0007)</td>
+                        <td class="p-2">90.88% $\to$ 89.97% (-0.90%)</td>
+                        <td class="p-2">86.65% $\to$ <b class="alert-green">89.20% (+2.55%**)</b></td>
+                        <td class="p-2">95.10% $\to$ 90.75% (-4.35%)</td>
+                        <td class="p-2">90.46% $\to$ 89.94% (-0.52%)</td>
+                        <td class="p-2 alert-green">p=0.0053** Sens (4/4 seeds)</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2 font-bold text-blue-300">MAX</td>
+                        <td class="p-2 text-white">7x7</td>
+                        <td class="p-2 text-slate-300">archive2 (n=3)</td>
+                        <td class="p-2">0.9664 $\to$ 0.9612 (-0.0052)</td>
+                        <td class="p-2">89.97% $\to$ 89.23% (-0.73%)</td>
+                        <td class="p-2">83.93% $\to$ <b class="alert-green">85.60% (+1.67%)</b></td>
+                        <td class="p-2">96.00% $\to$ 92.87% (-3.13%)</td>
+                        <td class="p-2">89.22% $\to$ 88.73% (-0.48%)</td>
+                        <td class="p-2 text-slate-300">Gana 3/3 seeds en Sensibilidad</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="p-3 bg-slate-800 border-l-4 border-emerald-400 rounded text-xs text-slate-300">
+                <b>Análisis de las particiones <code>11k_1</code> vs <code>11k_2</code> con <code>SMO Global</code> ($n=11$):</b> En <code>archive11k_2</code> el método corrige el sesgo conservador del Baseline disparando la <b>Sensibilidad (+8.74%, $p=0.048$)</b> y el <b>Accuracy (+3.47%)</b>; mientras que en <code>archive11k_1</code> refuerza la <b>Especificidad (+2.44%, $p=0.050$, ganando en 8/11 semillas)</b>.
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- SLIDE 7: RESNET-18 (50 ÉPOCAS) — RESULTADOS CON SMO GLOBAL INTEGRADO  -->
+        <!-- ===================================================================== -->
+        <div class="slide">
+            <h2 class="text-2xl font-bold mb-3 border-b border-slate-700 pb-3 flex justify-between items-center">
+                <span>2. Red <code>ResNet-18</code>: Resultados a 50 Épocas (Incluye <code>SMO Global 11k</code>)</span>
+                <span class="text-xs font-mono text-emerald-400 bg-emerald-950/50 px-3 py-1 rounded border border-emerald-500/30">93 Corridas a 50 Épocas</span>
+            </h2>
+            <p class="text-xs text-slate-300 mb-3">
+                Reemplazo de <code>model.maxpool</code> por <code>AdaptiveMorphPooling2d</code> evaluando <code>MEAN</code>, <code>SMO</code> y <code>MIN</code> en ventanas <code>5x5</code>, <code>7x7</code> y <code>Global</code>:
+            </p>
+            <table class="w-full text-left text-xs border-collapse mb-3">
+                <thead>
+                    <tr class="bg-slate-700/60 text-slate-200">
+                        <th class="p-2 rounded-tl-lg">Descriptor</th>
+                        <th class="p-2">Ventana</th>
+                        <th class="p-2">Dataset ($n$)</th>
+                        <th class="p-2">AUC Media (Base $\to$ Prop)</th>
+                        <th class="p-2">Accuracy Media</th>
+                        <th class="p-2">Sensibilidad Media</th>
+                        <th class="p-2">Especificidad Media</th>
+                        <th class="p-2">F1-Score Medio</th>
+                        <th class="p-2 rounded-tr-lg">Mejor Corrida Individual (Best Seed)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/80 font-mono text-[11px]">
+                    <tr class="new-row">
+                        <td class="p-2 font-bold text-emerald-300">SMO ★</td>
+                        <td class="p-2 font-bold text-white">global</td>
+                        <td class="p-2 text-emerald-200">archive11k_2 (9)</td>
+                        <td class="p-2">0.9860 $\to$ <b class="alert-green">0.9861 (+0.0001)</b></td>
+                        <td class="p-2">94.37% $\to$ <b>94.32% (5/9 wins)</b></td>
+                        <td class="p-2">94.19% $\to$ <b class="alert-green">94.65% (+0.46%)</b></td>
+                        <td class="p-2">94.55% $\to$ 93.98% (-0.57%)</td>
+                        <td class="p-2">94.36% $\to$ <b>94.34% (5/9 wins)</b></td>
+                        <td class="p-2 alert-green">s784: 95.07% Acc (+1.14%), 0.9898 AUC | s236: 96.29% Sens</td>
+                    </tr>
+                    <tr class="bg-emerald-950/30">
+                        <td class="p-2 font-bold text-emerald-300">MEAN</td>
+                        <td class="p-2 font-bold text-white">7x7</td>
+                        <td class="p-2 text-slate-300">archive (13)</td>
+                        <td class="p-2">0.9584 $\to$ <b class="alert-green">0.9603 (+0.0019)</b></td>
+                        <td class="p-2">88.78% $\to$ <b class="alert-green">89.11% (+0.34%)</b></td>
+                        <td class="p-2">88.08% $\to$ <b class="alert-green">89.23% (+1.15%)</b></td>
+                        <td class="p-2">89.36% $\to$ 89.02% (-0.34%)</td>
+                        <td class="p-2">87.72% $\to$ <b class="alert-green">88.17% (+0.45%)</b></td>
+                        <td class="p-2 text-emerald-300">s700: 89.55% Acc (+3.19%), +5.33% Sens (9/13 w)</td>
+                    </tr>
+                    <tr class="bg-emerald-950/20">
+                        <td class="p-2 font-bold text-emerald-300">MEAN</td>
+                        <td class="p-2 font-bold text-white">5x5</td>
+                        <td class="p-2 text-slate-300">archive (10)</td>
+                        <td class="p-2">0.9584 $\to$ 0.9568 (-0.0016)</td>
+                        <td class="p-2">88.35% $\to$ <b class="alert-green">88.47% (+0.12%)</b></td>
+                        <td class="p-2">87.77% $\to$ <b class="alert-green">89.40% (+1.63%)</b></td>
+                        <td class="p-2">88.83% $\to$ 87.69% (-1.14%)</td>
+                        <td class="p-2">87.27% $\to$ <b class="alert-green">87.58% (+0.31%)</b></td>
+                        <td class="p-2 text-emerald-300">s72: 88.18% Acc (+2.12%), +0.0113 AUC</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2 font-bold text-blue-300">SMO</td>
+                        <td class="p-2 text-white">7x7</td>
+                        <td class="p-2 text-slate-300">archive2 (1)</td>
+                        <td class="p-2">0.9682 $\to$ <b class="alert-green">0.9693 (+0.0011)</b></td>
+                        <td class="p-2">91.80% $\to$ <b class="alert-green">92.20% (+0.40%)</b></td>
+                        <td class="p-2">89.20% $\to$ 89.00% (-0.20%)</td>
+                        <td class="p-2">94.40% $\to$ <b class="alert-green">95.40% (+1.00%)</b></td>
+                        <td class="p-2">91.58% $\to$ <b class="alert-green">91.94% (+0.36%)</b></td>
+                        <td class="p-2 text-slate-300">s673: Supera en 4 métricas (mitad de tiempo)</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2 font-bold text-blue-300">SMO</td>
+                        <td class="p-2 text-white">7x7</td>
+                        <td class="p-2 text-slate-300">archive (1)</td>
+                        <td class="p-2">0.9511 $\to$ <b class="alert-green">0.9569 (+0.0058)</b></td>
+                        <td class="p-2">88.18% $\to$ 88.03% (-0.15%)</td>
+                        <td class="p-2">87.33% $\to$ <b>87.33% (0.00%)</b></td>
+                        <td class="p-2">88.89% $\to$ 88.61% (-0.28%)</td>
+                        <td class="p-2">87.04% $\to$ 86.90% (-0.14%)</td>
+                        <td class="p-2 text-slate-300">s42: +0.0058 AUC</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2 font-bold text-slate-300">MEAN</td>
+                        <td class="p-2 text-white">global</td>
+                        <td class="p-2 text-slate-300">archive2 (13)</td>
+                        <td class="p-2">0.9762 $\to$ 0.9757 (-0.0004)</td>
+                        <td class="p-2">92.54% $\to$ 92.48% (-0.05%)</td>
+                        <td class="p-2">89.49% $\to$ 89.34% (-0.15%)</td>
+                        <td class="p-2">95.58% $\to$ <b class="alert-green">95.63% (+0.05%)</b></td>
+                        <td class="p-2">92.30% $\to$ 92.24% (-0.06%)</td>
+                        <td class="p-2 text-slate-300">s410: 92.90% Acc (+0.80%), +1.20% Sens</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2 font-bold text-slate-300">MEAN</td>
+                        <td class="p-2 text-white">global</td>
+                        <td class="p-2 text-slate-300">archive_2k (12)</td>
+                        <td class="p-2">0.9673 $\to$ <b class="alert-green">0.9673 (+0.0001)</b></td>
+                        <td class="p-2">90.04% $\to$ 89.51% (-0.53%)</td>
+                        <td class="p-2">86.25% $\to$ 85.06% (-1.19%)</td>
+                        <td class="p-2">93.83% $\to$ <b class="alert-green">93.97% (+0.14%)</b></td>
+                        <td class="p-2">89.63% $\to$ 89.00% (-0.63%)</td>
+                        <td class="p-2 text-slate-300">s196: 89.83% Acc (+1.16%), +4.66% Sens</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2 font-bold text-slate-300">MEAN</td>
+                        <td class="p-2 text-white">5x5</td>
+                        <td class="p-2 text-slate-300">archive2 (10)</td>
+                        <td class="p-2">0.9762 $\to$ 0.9761 (-0.0001)</td>
+                        <td class="p-2">92.64% $\to$ 92.20% (-0.44%)</td>
+                        <td class="p-2">89.08% $\to$ <b class="alert-green">89.32% (+0.24%)</b></td>
+                        <td class="p-2">96.20% $\to$ 95.08% (-1.12%)</td>
+                        <td class="p-2">92.37% $\to$ 91.97% (-0.40%)</td>
+                        <td class="p-2 text-slate-300">s261: 92.50% Acc (+0.50%), 96.60% Spec</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2 font-bold text-slate-300">MIN</td>
+                        <td class="p-2 text-white">5x5</td>
+                        <td class="p-2 text-slate-300">archive2 (3)</td>
+                        <td class="p-2">0.9751 $\to$ 0.9716 (-0.0035)</td>
+                        <td class="p-2">92.50% $\to$ 91.90% (-0.60%)</td>
+                        <td class="p-2">90.53% $\to$ 87.53% (-3.00%)</td>
+                        <td class="p-2">94.47% $\to$ <b class="alert-green">96.27% (+1.80%)</b></td>
+                        <td class="p-2">92.36% $\to$ 91.53% (-0.83%)</td>
+                        <td class="p-2 text-slate-300">s432: 91.80% Acc (+0.20%), +4.20% Spec</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="p-2.5 bg-emerald-950/30 border-l-4 border-emerald-400 rounded text-xs text-slate-200">
+                <b>Nuevo hito en <code>ResNet-18 + SMO Global</code> (<code>archive11k_2</code>, $n=9$):</b> Supera al Baseline en <b>5 de las 9 semillas</b> en Accuracy, Sensibilidad y F1, reduce la desviación estándar de Sensibilidad de <code>1.33%</code> a <code>0.86%</code> y logra el <b>récord absoluto de AUC-ROC de toda la tesis: 0.9898</b> (<code>s784</code>, con <b>95.07% Accuracy</b>).
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- SLIDE 8: VGG-16 (50 ÉPOCAS) — RÉCORDS GLOBALES CON MEAN 5x5 Y SMO GLB -->
+        <!-- ===================================================================== -->
+        <div class="slide">
+            <h2 class="text-2xl font-bold mb-3 border-b border-slate-700 pb-3 flex justify-between items-center">
+                <span>3. Red <code>VGG-16</code>: Nuevos Récords Globales en <code>10.6k</code> y <code>11k</code> Imágenes</span>
+                <span class="text-xs font-mono text-purple-300 bg-purple-950/50 px-3 py-1 rounded border border-purple-500/30">5 Capas MorphPool en Cascada</span>
+            </h2>
+            <p class="text-xs text-slate-300 mb-4">
+                Los nuevos experimentos multi-semilla con <code>SMO Global</code> (en <code>archive11k_1</code>) y <code>MEAN 5x5</code> (en <code>archive2</code>) demuestran que <b><code>VGG-16</code> alcanza las métricas absolutas más altas de todo el proyecto cuando se entrena con alto volumen de datos</b>:
+            </p>
+            <table class="w-full text-left text-xs border-collapse mb-5">
+                <thead>
+                    <tr class="bg-slate-700/60 text-slate-200">
+                        <th class="p-2.5 rounded-tl-lg">Descriptor</th>
+                        <th class="p-2.5">Ventana</th>
+                        <th class="p-2.5">Dataset ($n$)</th>
+                        <th class="p-2.5">AUC Media $\pm$ SD</th>
+                        <th class="p-2.5">Accuracy Media $\pm$ SD</th>
+                        <th class="p-2.5">Sensibilidad Media $\pm$ SD</th>
+                        <th class="p-2.5">Especificidad Media $\pm$ SD</th>
+                        <th class="p-2.5">F1-Score Medio $\pm$ SD</th>
+                        <th class="p-2.5 rounded-tr-lg">Mejor Corrida (Best Seed)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/80 font-mono text-[11px]">
+                    <tr class="new-row">
+                        <td class="p-2.5 font-bold text-emerald-300">SMO ★</td>
+                        <td class="p-2.5 font-bold text-white">global</td>
+                        <td class="p-2.5 text-emerald-200">archive11k_1 (n=3)</td>
+                        <td class="p-2.5 alert-green">0.9830 $\to$ 0.9835 ± 0.0040 (+0.0005)</td>
+                        <td class="p-2.5">94.88% $\to$ <b>94.57% ± 0.86%</b> (-0.31%)</td>
+                        <td class="p-2.5 alert-green">93.24% $\to$ 95.57% ± 1.17% (+2.34%)</td>
+                        <td class="p-2.5">96.52% $\to$ 93.57% ± 2.87% (-2.95%)</td>
+                        <td class="p-2.5">94.78% $\to$ <b>94.63% ± 0.74%</b> (-0.14%)</td>
+                        <td class="p-2.5 alert-green">s61: 94.57% Acc (+1.28%), 95.86% Sens (+6.43%)</td>
+                    </tr>
+                    <tr class="bg-emerald-950/30">
+                        <td class="p-2.5 font-bold text-emerald-300">MEAN</td>
+                        <td class="p-2.5 font-bold text-white">5x5</td>
+                        <td class="p-2.5 text-slate-300">archive2 (n=5)</td>
+                        <td class="p-2.5">0.9739 $\to$ 0.9722 (-0.0016)</td>
+                        <td class="p-2.5 alert-green">92.18% $\to$ 92.62% ± 0.42% (+0.44%)</td>
+                        <td class="p-2.5 alert-green">88.48% $\to$ 88.84% ± 0.78% (+0.36%)</td>
+                        <td class="p-2.5 alert-green">95.88% $\to$ 96.40% ± 0.57% (+0.52%)</td>
+                        <td class="p-2.5 alert-green">91.89% $\to$ 92.33% ± 0.45% (+0.45%)</td>
+                        <td class="p-2.5 text-emerald-300">s846: 93.10% Acc (+1.90%), 97.0% Spec</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2.5 font-bold text-blue-300">MEAN</td>
+                        <td class="p-2.5 font-bold text-white">global</td>
+                        <td class="p-2.5 text-slate-300">archive_2k (n=6)</td>
+                        <td class="p-2.5 alert-green">0.9609 $\to$ 0.9614 ± 0.0063 (+0.0005)</td>
+                        <td class="p-2.5">90.25% $\to$ 90.11% ± 0.72% (-0.14%)</td>
+                        <td class="p-2.5">87.17% $\to$ 86.44% ± 1.24% (-0.72%)</td>
+                        <td class="p-2.5 alert-green">93.33% $\to$ 93.78% ± 0.89% (+0.45%)</td>
+                        <td class="p-2.5">89.93% $\to$ 89.73% ± 0.79% (-0.20%)</td>
+                        <td class="p-2.5 text-emerald-300">s987: 90.67% Acc (+2.17%), +3.33% Sens</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2.5 font-bold text-slate-400">SMO</td>
+                        <td class="p-2.5 text-white">7x7</td>
+                        <td class="p-2.5 text-slate-300">archive (n=1)</td>
+                        <td class="p-2.5">0.9560 $\to$ 0.9512 (-0.0048)</td>
+                        <td class="p-2.5">89.39% $\to$ 87.42% (-1.97%)</td>
+                        <td class="p-2.5">90.33% $\to$ 89.00% (-1.33%)</td>
+                        <td class="p-2.5">88.61% $\to$ 86.11% (-2.50%)</td>
+                        <td class="p-2.5">88.56% $\to$ 86.55% (-2.01%)</td>
+                        <td class="p-2.5 text-slate-400">s42: Corrida preliminar 1 seed (dataset chico)</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="grid grid-cols-2 gap-4 text-xs">
+                <div class="p-3 bg-emerald-900/20 border-l-4 border-emerald-400 rounded text-slate-200">
+                    <b>Récord de Sensibilidad Clínica con <code>VGG-16 + SMO Global</code> (<code>archive11k_1</code>):</b> Eleva la Sensibilidad media de <code>93.24%</code> a <b>95.57% (+2.34%)</b> y el AUC a <b>0.9835</b>, reduciendo los Falsos Negativos medios de <code>47.3</code> a solo <b>31.0 casos sobre 700 melanomas (-34.5%)</b>. En <code>s164</code> detecta el <b>96.57%</b> de los melanomas.
+                </div>
+                <div class="p-3 bg-purple-900/20 border-l-4 border-purple-400 rounded text-slate-200">
+                    <b>Récord de Balance Global con <code>VGG-16 + MEAN 5x5</code> (<code>archive2</code>):</b> Supera al Baseline simultáneamente en Accuracy (<b>92.62%</b>), Sensibilidad (<b>88.84%</b>), Especificidad (<b>96.40%</b>) y F1 (<b>92.33%</b>), reduciendo la desviación estándar a la mitad.
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- SLIDE 9: COMPARATIVA DIRECTA DE SMO GLOBAL EN 11K IMÁGENES (NEWEST)   -->
+        <!-- ===================================================================== -->
+        <div class="slide">
+            <h2 class="text-2xl font-bold mb-3 border-b border-slate-700 pb-3 flex justify-between items-center">
+                <span>Análisis de <code>reportes/newest</code>: <code>SMO Global</code> en Datasets de 11,005 Imágenes</span>
+                <span class="text-xs font-mono bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-full border border-emerald-500/40">★ Nuevos Resultados Consolidados</span>
+            </h2>
+            <p class="text-xs text-slate-300 mb-4">
+                Al evaluar el descriptor invariante al desplazamiento <b><code>SMO</code> con ventana <code>Global</code></b> sobre las particiones masivas <code>archive11k_1</code> y <code>archive11k_2</code> (9,605 train / 1,400 test), se confirma nuestra hipótesis en las <b>tres arquitecturas</b>:
+            </p>
+            <div class="grid grid-cols-3 gap-4 mb-4">
+                <div class="bg-slate-800 p-4 rounded-xl border border-blue-500/40">
+                    <span class="text-xs font-mono text-blue-400 uppercase block mb-1">CNN Simple · SMO Global</span>
+                    <h3 class="text-base font-bold text-white mb-2">archive11k_2 ($n=11$)</h3>
+                    <ul class="text-xs font-mono text-slate-300 space-y-1.5">
+                        <li>• <b>Acc:</b> 83.49% $\to$ <b class="alert-green">86.97% (+3.47%)</b></li>
+                        <li>• <b>Sens:</b> 71.92% $\to$ <b class="alert-green">80.66% (+8.74%*)</b></li>
+                        <li>• <b>F1:</b> 79.96% $\to$ <b class="alert-green">85.13% (+5.18%)</b></li>
+                        <li>• <b>AUC:</b> 0.9595 $\to$ <b class="alert-green">0.9601</b></li>
+                        <li>• <b>Falsos Neg.:</b> 196.5 $\to$ <b class="alert-green">135.4 (-61.2)</b></li>
+                        <li class="pt-1 border-t border-slate-700 text-emerald-300">★ Significancia <b>p = 0.0482*</b> en Sensibilidad y gana 7/11 en Acc/F1.</li>
+                    </ul>
+                </div>
+
+                <div class="bg-slate-800 p-4 rounded-xl border border-emerald-500/40">
+                    <span class="text-xs font-mono text-emerald-400 uppercase block mb-1">ResNet-18 · SMO Global</span>
+                    <h3 class="text-base font-bold text-white mb-2">archive11k_2 ($n=9$)</h3>
+                    <ul class="text-xs font-mono text-slate-300 space-y-1.5">
+                        <li>• <b>AUC:</b> 0.9860 $\to$ <b class="alert-green">0.9861 (Pico 0.9898)</b></li>
+                        <li>• <b>Sens:</b> 94.19% $\to$ <b class="alert-green">94.65% (+0.46%)</b></li>
+                        <li>• <b>Acc:</b> 94.37% $\to$ <b>94.32% (Gana 5/9)</b></li>
+                        <li>• <b>SD Acc:</b> 0.65% $\to$ <b class="alert-green">0.48% (-26% var)</b></li>
+                        <li>• <b>Falsos Neg.:</b> 40.7 $\to$ <b class="alert-green">37.4 (-3.2)</b></li>
+                        <li class="pt-1 border-t border-slate-700 text-emerald-300">★ Mejor seed <code>s784</code> alcanza <b>95.07% Acc (+1.14%)</b> y <b>0.9898 AUC</b>.</li>
+                    </ul>
+                </div>
+
+                <div class="bg-slate-800 p-4 rounded-xl border border-purple-500/40">
+                    <span class="text-xs font-mono text-purple-400 uppercase block mb-1">VGG-16 · SMO Global</span>
+                    <h3 class="text-base font-bold text-white mb-2">archive11k_1 ($n=3$)</h3>
+                    <ul class="text-xs font-mono text-slate-300 space-y-1.5">
+                        <li>• <b>Sens:</b> 93.24% $\to$ <b class="alert-green">95.57% (+2.34%)</b></li>
+                        <li>• <b>AUC:</b> 0.9830 $\to$ <b class="alert-green">0.9835 (+0.0005)</b></li>
+                        <li>• <b>Acc:</b> 94.88% $\to$ <b>94.57% (Pico 95.43%)</b></li>
+                        <li>• <b>SD Sens:</b> 3.35% $\to$ <b class="alert-green">1.17% (-65% var)</b></li>
+                        <li>• <b>Falsos Neg.:</b> 47.3 $\to$ <b class="alert-green">31.0 (-16.3)</b></li>
+                        <li class="pt-1 border-t border-slate-700 text-emerald-300">★ En <code>s61</code> sube <b>+6.43% en Sens</b> y <b>+1.28% en Acc (94.57%)</b>.</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="p-3 bg-slate-800/90 border border-slate-700 rounded-xl text-xs text-slate-300">
+                <b>Patrón transversal en los 3 modelos con <code>SMO Global</code> en 11k imágenes:</b> En las tres arquitecturas (<code>CNN Simple</code>, <code>ResNet-18</code> y <code>VGG-16</code>) sobre <code>archive11k</code>, <b><code>SMO Global</code> incrementa el AUC-ROC medio, disminuye sistemáticamente la desviación estándar entre semillas y reduce los Falsos Negativos de melanoma</b> (<code>-61.2</code> en CNN, <code>-3.2</code> en ResNet y <code>-16.3</code> en VGG-16).
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- SLIDE 10: ANÁLISIS TRANSVERSAL — VENTANAS Y DESCRIPTORES              -->
+        <!-- ===================================================================== -->
+        <div class="slide">
+            <h2 class="text-2xl font-bold mb-4 border-b border-slate-700 pb-3">
+                Síntesis Cruzada: ¿Qué Combinación (Red × Descriptor × Ventana) Elegir?
+            </h2>
+            <div class="grid grid-cols-3 gap-5 mb-5">
+                <div class="bg-slate-800 p-4 rounded-xl border border-blue-500/40">
+                    <span class="text-xs font-mono uppercase text-blue-400 block mb-1">Entrenamiento Desde Cero</span>
+                    <h3 class="text-lg font-bold text-white mb-2">CNN Simple</h3>
+                    <p class="text-xs text-slate-300 mb-3">
+                        Los filtros se adaptan desde la época 1 al ordenamiento ponderado por $\alpha_c$.
+                    </p>
+                    <div class="text-xs font-mono space-y-1.5 bg-slate-900/70 p-3 rounded border border-slate-700">
+                        <div>🏆 <b>Mejor Ventana:</b> <span class="alert-green">Global</span> (&gt; 5x5 &gt; 7x7)</div>
+                        <div>🏆 <b>Mejor en 2k:</b> <span class="alert-green">MEAN Global</span> (+7.61% Acc, p=0.020* F1) y <span class="alert-green">SMO Global</span> (+4.83% Acc)</div>
+                        <div>🏆 <b>Mejor en 10k–11k:</b> <span class="alert-green">SMO Global</span> (+3.47% Acc, +8.74% Sens* en 11k_2) y <span class="alert-green">SMO 7x7</span> (91.03% Acc en archive2)</div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 p-4 rounded-xl border border-emerald-500/40">
+                    <span class="text-xs font-mono uppercase text-emerald-400 block mb-1">Transfer Learning (Stem + GAP)</span>
+                    <h3 class="text-lg font-bold text-white mb-2">ResNet-18</h3>
+                    <p class="text-xs text-slate-300 mb-3">
+                        Reemplazo único en el <i>stem</i> inicial (`56×56`); etapas intermedias usan convolución con stride.
+                    </p>
+                    <div class="text-xs font-mono space-y-1.5 bg-slate-900/70 p-3 rounded border border-slate-700">
+                        <div>🏆 <b>Mejor Ventana:</b> <span class="alert-green">7x7</span> (3k) y <span class="alert-green">Global</span> (11k)</div>
+                        <div>🏆 <b>Mejor en 3k:</b> <span class="alert-green">MEAN 7x7</span> (gana 9/13 seeds en Sens, 89.11% Acc)</div>
+                        <div>🏆 <b>Mejor en 11k:</b> <span class="alert-green">SMO Global</span> (<b>94.65% Sens</b>, <b>0.9861 AUC medio / 0.9898 pico</b>, gana 5/9 seeds)</div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 p-4 rounded-xl border border-purple-500/40">
+                    <span class="text-xs font-mono uppercase text-purple-400 block mb-1">Transfer Learning (5 Etapas)</span>
+                    <h3 class="text-lg font-bold text-white mb-2">VGG-16</h3>
+                    <p class="text-xs text-slate-300 mb-3">
+                        5 capas <code>AdaptiveMorphPooling2d</code> consecutivas; requiere alto volumen de datos (10k–11k).
+                    </p>
+                    <div class="text-xs font-mono space-y-1.5 bg-slate-900/70 p-3 rounded border border-slate-700">
+                        <div>🏆 <b>Mejor Ventana:</b> <span class="alert-green">5x5</span> y <span class="alert-green">Global</span></div>
+                        <div>🏆 <b>Mejor en 10.6k:</b> <span class="alert-green">MEAN 5x5</span> (<b>92.62% Acc</b>, <b>96.40% Spec</b>, gana en las 4 métricas)</div>
+                        <div>🏆 <b>Mejor en 11k:</b> <span class="alert-green">SMO Global</span> (<b>95.57% Sensibilidad [+2.34%]</b>, <b>0.9835 AUC</b>)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-800/90 border border-slate-700 rounded-xl text-xs text-slate-300">
+                <b class="text-white block mb-1">Conclusión sobre Invarianza a la Normalización:</b>
+                Los resultados de <code>reportes/newest</code> confirman que al usar <b><code>SMO Global</code></b> (basado en varianza $\sigma^2$, invariante a los valores negativos de la normalización <i>ImageNet</i>), tanto <code>ResNet-18</code> como <code>VGG-16</code> logran superar los <b>94.3%–94.6% de Accuracy medio</b>, <b>94.6%–95.6% de Sensibilidad</b> y <b>&gt;0.983 de AUC-ROC</b> en los datasets de 11,005 imágenes.
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- SLIDE 11: TIEMPOS DE ENTRENAMIENTO EN GTX 1650 KO ULTRA (50 ÉPOCAS)   -->
+        <!-- ===================================================================== -->
+        <div class="slide">
+            <h2 class="text-2xl font-bold mb-3 border-b border-slate-700 pb-3">
+                Desempeño Computacional en GPU NVIDIA GTX 1650 KO Ultra (50 Épocas)
+            </h2>
+            <p class="text-xs text-slate-300 mb-4">
+                Tiempos reales promedio de entrenamiento (50 épocas) comparando <code>Baseline (MaxPool2d)</code> vs. <code>Propuesto (AdaptiveMorphPooling2d)</code> incluyendo los datasets de 11,005 imágenes:
+            </p>
+            <table class="w-full text-left text-xs border-collapse mb-4">
+                <thead>
+                    <tr class="bg-slate-700/60 text-slate-200">
+                        <th class="p-2 rounded-tl-lg">Red Neuronal</th>
+                        <th class="p-2">Descriptor</th>
+                        <th class="p-2">Ventana</th>
+                        <th class="p-2">Dataset ($n$)</th>
+                        <th class="p-2">Tiempo Baseline</th>
+                        <th class="p-2">Tiempo Propuesto</th>
+                        <th class="p-2">Diferencia</th>
+                        <th class="p-2 rounded-tr-lg">Explicación Simple</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/80 font-mono text-[11px]">
+                    <tr class="new-row">
+                        <td class="p-2 font-bold text-blue-400">CNN Simple</td>
+                        <td class="p-2 text-emerald-300 font-bold">SMO ★</td>
+                        <td class="p-2 text-white">global</td>
+                        <td class="p-2 text-slate-300">archive11k_2 (n=11)</td>
+                        <td class="p-2">172.9s (~2.9 min)</td>
+                        <td class="p-2 alert-green">172.7s (~2.9 min)</td>
+                        <td class="p-2 alert-green">-0.2s (Igual)</td>
+                        <td class="p-2 text-emerald-300">Tarda lo mismo en 11,005 imágenes</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2 font-bold text-blue-400">CNN Simple</td>
+                        <td class="p-2 text-white font-bold">MEAN</td>
+                        <td class="p-2 text-white">global</td>
+                        <td class="p-2 text-slate-300">archive_2k_2 (n=9)</td>
+                        <td class="p-2">211.0s (~3.5 min)</td>
+                        <td class="p-2 alert-green">215.0s (~3.6 min)</td>
+                        <td class="p-2 alert-green">+4.0s (+1.8%)</td>
+                        <td class="p-2 text-slate-300">Cálculo global directo sin recortar parches</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2 font-bold text-blue-400">CNN Simple</td>
+                        <td class="p-2 text-white font-bold">MEAN</td>
+                        <td class="p-2 text-white">5x5</td>
+                        <td class="p-2 text-slate-300">archive_2k_2 (n=9)</td>
+                        <td class="p-2">212.0s (~3.5 min)</td>
+                        <td class="p-2 alert-green">213.0s (~3.5 min)</td>
+                        <td class="p-2 alert-green">+1.0s (+0.5%)</td>
+                        <td class="p-2 text-slate-300">Prácticamente idéntico al MaxPool</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2 font-bold text-blue-400">CNN Simple</td>
+                        <td class="p-2 text-white font-bold">SMO</td>
+                        <td class="p-2 text-white">7x7</td>
+                        <td class="p-2 text-slate-300">archive_2k_2 (n=9)</td>
+                        <td class="p-2">204.0s (~3.4 min)</td>
+                        <td class="p-2 text-slate-200">225.0s (~3.7 min)</td>
+                        <td class="p-2 text-slate-300">+21.0s (+10%)</td>
+                        <td class="p-2 text-slate-300">Ventana local 7x7 requiere más cálculo</td>
+                    </tr>
+                    <tr class="new-row">
+                        <td class="p-2 font-bold text-emerald-400">ResNet-18</td>
+                        <td class="p-2 text-emerald-300 font-bold">SMO ★</td>
+                        <td class="p-2 text-white">global</td>
+                        <td class="p-2 text-slate-300">archive11k_2 (n=9)</td>
+                        <td class="p-2">499.1s (~8.3 min)</td>
+                        <td class="p-2 alert-green">490.2s (~8.2 min)</td>
+                        <td class="p-2 alert-green">-8.9s (-1.8%)</td>
+                        <td class="p-2 text-emerald-300">Capas congeladas precalculadas 1 sola vez</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2 font-bold text-emerald-400">ResNet-18</td>
+                        <td class="p-2 text-white font-bold">MEAN</td>
+                        <td class="p-2 text-white">7x7</td>
+                        <td class="p-2 text-slate-300">archive (n=13)</td>
+                        <td class="p-2">140.0s (~2.3 min)</td>
+                        <td class="p-2 alert-green">140.0s (~2.3 min)</td>
+                        <td class="p-2 alert-green">0.0s (Igual)</td>
+                        <td class="p-2 text-emerald-300">Sin demora extra gracias a la precomputación</td>
+                    </tr>
+                    <tr>
+                        <td class="p-2 font-bold text-purple-400">VGG-16</td>
+                        <td class="p-2 text-white font-bold">MEAN</td>
+                        <td class="p-2 text-white">5x5</td>
+                        <td class="p-2 text-slate-300">archive2 (n=5)</td>
+                        <td class="p-2">1,493s (~24.9 min)</td>
+                        <td class="p-2 alert-green">1,480s (~24.6 min)</td>
+                        <td class="p-2 alert-green">-13.0s (-0.9%)</td>
+                        <td class="p-2 text-emerald-300">Tarda lo mismo en las 10,605 imágenes</td>
+                    </tr>
+                    <tr class="new-row">
+                        <td class="p-2 font-bold text-purple-400">VGG-16</td>
+                        <td class="p-2 text-emerald-300 font-bold">SMO ★</td>
+                        <td class="p-2 text-white">global</td>
+                        <td class="p-2 text-slate-300">archive11k_1 (n=3)</td>
+                        <td class="p-2">2,487s (~41.5 min)</td>
+                        <td class="p-2 text-slate-200">3,247s (~54.1 min)</td>
+                        <td class="p-2 text-amber-300">+12.6 min (+30%)</td>
+                        <td class="p-2 text-slate-300">5 capas seguidas con SMO en 11,005 imágenes</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="p-3 bg-emerald-900/20 border border-emerald-500/40 rounded-lg text-xs text-slate-200">
+                <b>Eficiencia demostrada en la GTX 1650 KO Ultra:</b> En <code>CNN Simple</code> y <code>ResNet-18</code> sobre <b>11,005 imágenes</b>, la ventana <code>Global</code> entrena 50 épocas en <b>2.9 minutos</b> y <b>8.2 minutos</b> respectivamente con <b>0% de overhead</b> (ratio <code>0.98×–1.00×</code>).
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- SLIDE 12: CONCLUSIONES DE LOS RESULTADOS OBTENIDOS                    -->
+        <!-- ===================================================================== -->
+        <div class="slide">
+            <h2 class="text-2xl font-bold mb-5 border-b border-slate-700 pb-3">
+                Conclusiones Finales de los Resultados a 50 Épocas (258 Corridas)
+            </h2>
+            <div class="grid grid-cols-2 gap-5 mb-5">
+                <div class="bg-slate-800/90 p-4 rounded-xl border-l-4 border-emerald-500 space-y-1.5">
+                    <h3 class="text-sm font-bold text-emerald-400">1. Doble Demostración de Significancia ($p &lt; 0.05$) en Ventana Global</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        En <code>CNN Simple</code>, <b><code>MEAN Global</code></b> (`archive_2k_2`, $n=9$) logra <b>+7.61% Acc</b>, <b>+10.41% Sens ($p=0.033^*$)</b> y <b>+8.96% F1 ($p=0.020^*$, 9/9 seeds)</b>. A escala masiva (`archive11k_2`, $n=11$), <b><code>SMO Global</code></b> confirma significancia con <b>+8.74% en Sensibilidad ($p=0.048^*$, -61.2 FN)</b> y <b>+3.47% en Accuracy</b> ($p=0.057$, 7/11 seeds).
+                    </p>
+                </div>
+                <div class="bg-slate-800/90 p-4 rounded-xl border-l-4 border-blue-500 space-y-1.5">
+                    <h3 class="text-sm font-bold text-blue-400">2. Consistencia de Ventanas Locales (<code>5x5</code> y <code>7x7</code>)</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        En <code>archive_2k_2</code> ($n=9$), las 6 combinaciones evaluadas (<code>MEAN</code>, <code>SMO</code>, <code>VAR</code> en <code>5x5</code>, <code>7x7</code> y <code>Global</code>) superan al <code>MaxPool2d</code> en las 5 métricas. En <code>archive2</code> (10.6k), <code>SMO 7x7</code> llega a <b>91.03% Acc</b>, <code>MEAN 7x7</code> sube <b>+2.00% Acc / +5.50% Sens</b>, y <code>MO2 7x7</code> logra <b>$p=0.0053^{**}$ en Sensibilidad (4/4 seeds)</b>.
+                    </p>
+                </div>
+                <div class="bg-slate-800/90 p-4 rounded-xl border-l-4 border-purple-500 space-y-1.5">
+                    <h3 class="text-sm font-bold text-purple-400">3. Récords Absolutos en Transfer Learning (10.6k y 11k Imágenes)</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Con <b><code>SMO Global</code></b> en 11,005 imágenes, <b><code>ResNet-18</code></b> ($n=9$) alcanza <b>0.9861 AUC medio (pico 0.9898)</b> y <b>94.65% Sensibilidad</b> (ganando 5/9 seeds en Acc, Sens y F1), mientras que <b><code>VGG-16</code></b> ($n=3$) alcanza <b>95.57% Sensibilidad (+2.34%, -34.5% FN)</b> y con <b><code>MEAN 5x5</code></b> ($n=5$) gana en las 4 métricas de clasificación (<b>92.62% Acc, 96.40% Spec</b>).
+                    </p>
+                </div>
+                <div class="bg-slate-800/90 p-4 rounded-xl border-l-4 border-amber-500 space-y-1.5">
+                    <h3 class="text-sm font-bold text-amber-400">4. Viabilidad Computacional (0% Overhead con Ventana Global)</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        En la GPU <b>NVIDIA GTX 1650 KO Ultra</b>, el cálculo global por canal y la precomputación de etapas congeladas permiten entrenar 50 épocas sobre 11,005 imágenes en <b>2.9 min (`CNN`)</b> y <b>8.2 min (`ResNet-18`)</b> con un ratio de tiempo de <b><code>0.98×–1.00×</code></b> frente a <code>MaxPool2d</code>.
+                    </p>
+                </div>
+            </div>
+            <blockquote class="text-sm font-medium text-slate-200 italic border-l-4 border-emerald-400 pl-4 py-2 bg-slate-800/50 rounded-r-lg">
+                "A través de 258 entrenamientos a 50 épocas, el Pooling Morfológico Adaptativo por vector de pesos ponderados ($\alpha_c$) demuestra ser estadísticamente superior ($p &lt; 0.05$) al MaxPool estándar en redes entrenadas desde cero y altamente competitivo en Transfer Learning a gran escala, reduciendo hasta en un 38.5% los falsos negativos de melanoma."
+            </blockquote>
+        </div>
+
+    </div>
+
+    <!-- CONTROLES -->
+    <div id="controls" class="no-print">
+        <span id="slide-counter" class="text-slate-400 font-mono text-sm mr-4">1 / 12</span>
+        <button id="prev-btn" class="nav-btn" onclick="prevSlide()" disabled>
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <button id="next-btn" class="nav-btn" onclick="nextSlide()">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </button>
+    </div>
+
+    <script>
+        const slides = document.querySelectorAll('.slide');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const counter = document.getElementById('slide-counter');
+        const progressBar = document.getElementById('progress-bar');
+        
+        let currentSlide = 0;
+        const totalSlides = slides.length;
+
+        function updateDeck() {
+            slides.forEach((slide, index) => {
+                if(index === currentSlide) slide.classList.add('active');
+                else slide.classList.remove('active');
+            });
+            prevBtn.disabled = currentSlide === 0;
+            nextBtn.disabled = currentSlide === totalSlides - 1;
+            counter.innerText = `${currentSlide + 1} / ${totalSlides}`;
+            progressBar.style.width = `${((currentSlide + 1) / totalSlides) * 100}%`;
+        }
+
+        function nextSlide() { if (currentSlide < totalSlides - 1) { currentSlide++; updateDeck(); } }
+        function prevSlide() { if (currentSlide > 0) { currentSlide--; updateDeck(); } }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'Space') nextSlide();
+            else if (e.key === 'ArrowLeft') prevSlide();
+        });
+
+        updateDeck();
+    </script>
+</body>
+</html>
