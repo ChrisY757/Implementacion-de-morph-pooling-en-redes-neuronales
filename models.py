@@ -4,11 +4,11 @@ from morph_pool_layer import AdaptiveMorphPooling2d
 import torchvision.models as models
 
 class CNNClassifier(nn.Module):
-    def __init__(self, use_morph_pool=False, metric='SMO', stat_window=None, pool_type='max'):
+    def __init__(self, use_morph_pool=False, metric='SMO', stat_window=None, pool_type='max', partition='W0'):
         super().__init__()
         self.use_morph_pool = use_morph_pool
         if use_morph_pool:
-            self.pool = AdaptiveMorphPooling2d(2, 2, metric=metric, stat_window=stat_window)
+            self.pool = AdaptiveMorphPooling2d(2, 2, metric=metric, stat_window=stat_window, partition=partition)
         elif pool_type == 'avg':
             self.pool = nn.AvgPool2d(2, 2)
         else:
@@ -45,11 +45,11 @@ class CNNClassifier(nn.Module):
 
 
 class PretrainedWithPool(nn.Module):
-    def __init__(self, backbone_name='resnet18', use_morph=False, metric='SMO', stat_window=None, pool_type='max'):
+    def __init__(self, backbone_name='resnet18', use_morph=False, metric='SMO', stat_window=None, pool_type='max', partition='W0'):
         super().__init__()
         self.backbone_name = backbone_name
         if use_morph:
-            self.pool = AdaptiveMorphPooling2d(2, 2, metric=metric, stat_window=stat_window)
+            self.pool = AdaptiveMorphPooling2d(2, 2, metric=metric, stat_window=stat_window, partition=partition)
         elif pool_type == 'avg':
             self.pool = nn.AvgPool2d(2, 2)
         else:

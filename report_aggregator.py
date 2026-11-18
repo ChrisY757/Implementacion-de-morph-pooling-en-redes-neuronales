@@ -140,6 +140,8 @@ def aggregate_report(results, output_path="reporte_agregado_semillas.html", conf
     pool_title = f"{config.get('pool', 'max').upper()} vs Morph"
     metric_name = config.get("metric", "SMO")
     stat_win = config.get("stat_window", "2")
+    partition_name = config.get("partition", "W0")
+    domain_desc = config.get("domain_label", f"Ventana {stat_win} · {partition_name}")
     epochs_val = config.get("epochs", "N/A")
     dataset_name = config.get("dataset", "ISIC Dermoscopy")
     df_val = max(0, n_seeds - 1)
@@ -199,7 +201,7 @@ def aggregate_report(results, output_path="reporte_agregado_semillas.html", conf
             Tabla Agregada de Evidencia Estadística — {model_title} ({pool_title})
         </h1>
         <p class="text-sm text-slate-500 mt-1">
-            Descriptor: <b>{metric_name}</b> (Ventana: <b>{stat_win}</b>) • Dataset: <b>{dataset_name}</b> • Épocas: <b>{epochs_val}</b> • Semillas evaluadas: <span class="font-mono">{seeds_str}</span>
+            Descriptor: <b>{metric_name}</b> • Dominio: <b>{domain_desc}</b> • Dataset: <b>{dataset_name}</b> • Épocas: <b>{epochs_val}</b> • Semillas evaluadas: <span class="font-mono">{seeds_str}</span>
         </p>
     </header>
 

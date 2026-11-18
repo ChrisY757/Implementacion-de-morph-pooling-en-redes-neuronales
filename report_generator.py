@@ -212,10 +212,18 @@ def generate_html_report(baseline, proposed, config, output_path="reporte_experi
         </div>
 
         <!-- METADATOS TÉCNICOS DEL EXPERIMENTO -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 text-center">
+        <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3 text-center">
             <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
                 <span class="text-xs text-slate-500 block font-medium">Dataset</span>
                 <span class="text-sm font-bold text-slate-800">{config.get('dataset', 'ISIC Dermoscopy')}</span>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <span class="text-xs text-slate-500 block font-medium">Descriptor &phi;</span>
+                <span class="text-sm font-bold text-indigo-700 font-mono">{config.get('metric', 'SMO')}</span>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <span class="text-xs text-slate-500 block font-medium">Partición Dominio</span>
+                <span class="text-xs font-bold text-indigo-700 font-mono">{config.get('domain_label', f"B{config.get('stat_window', 2)}{config.get('partition', 'W0')}")}</span>
             </div>
             <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
                 <span class="text-xs text-slate-500 block font-medium">Muestras Train</span>

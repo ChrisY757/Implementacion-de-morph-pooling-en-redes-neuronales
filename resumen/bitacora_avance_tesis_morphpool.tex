@@ -1,0 +1,345 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+
+% ============================================================================
+% PAQUETES ESTÁNDAR (Compatibles con Overleaf, TeX Live y MiKTeX)
+% ============================================================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla,es-nodequoting]{babel}
+\usepackage{amsmath,amssymb,amsfonts,amsthm,mathtools}
+\usepackage[margin=1.7cm,top=2.0cm,bottom=2.0cm,columnsep=0.65cm]{geometry}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{caption}
+\usepackage[colorlinks=true,linkcolor=blue!70!black,urlcolor=blue!70!black,citecolor=teal!70!black]{hyperref}
+
+\captionsetup{font=small,labelfont=bf}
+\setlength{\parskip}{3pt}
+
+% Definiciones matemáticas formales
+\newtheorem{definition}{Definición}
+\newtheorem{remark}{Observación Metodológica}
+
+% Colores de apoyo para tablas y notas
+\definecolor{gain}{RGB}{6,95,70}
+\definecolor{slate}{RGB}{51,65,85}
+\definecolor{codebg}{RGB}{245,247,250}
+
+% ============================================================================
+% METADATOS DEL DOCUMENTO (REPORTE CIENTÍFICO Y BITÁCORA DE CONTEXTO)
+% ============================================================================
+\title{\vspace{-0.6cm}\textbf{Submuestreo Morfológico Adaptativo Vectorial por Pesos Estadísticos e Histo-Entrópicos en Redes Neuronales Convolucionales para la Detección de Melanoma evitando Colores Falsos}\\[0.25cm]
+\large \textit{Reporte de Avance en Formato Artículo y Bitácora Técnica Integral del Repositorio (\texttt{21-10})}}
+
+\author{
+\textbf{Christian Yegros}$^{1}$ \quad y \quad \textbf{Prof. Dr. José Luis Vázquez Noguera}$^{1}$ (Tutor)\\[0.15cm]
+\small $^{1}$Facultad Politécnica, Universidad Nacional de Asunción (FP-UNA), San Lorenzo, Paraguay\\
+\small \texttt{Bitácora de Investigación y Contexto Técnico Consolidado — Estado: En Desarrollo Activo}
+}
+
+\date{Noviembre 2026}
+
+\begin{document}
+
+\twocolumn[
+  \begin{@twocolumnfalse}
+    \maketitle
+    \vspace{-0.4cm}
+    \begin{abstract}
+      \noindent En las Redes Neuronales Convolucionales (CNN) aplicadas al diagnóstico asistido por computadora (CAD) de lesiones dermatoscópicas, el operador estándar de reducción espacial \texttt{MaxPool2d} ejecuta un ordenamiento marginal independiente sobre cada canal cromático ($R$, $G$, $B$). Cuando los máximos locales provienen de píxeles distintos dentro de la ventana de submuestreo, se sintetizan tripletes espectrales artificiales (\emph{colores falsos o espurios}) inexistentes en la lesión física, distorsionando biomarcadores clínicos decisivos del melanoma maligno como el velo azul-blanco, la red pigmentaria atípica y los glóbulos periféricos. Como continuación directa del marco de ordenamiento adaptativo en color de Vázquez Noguera et al. (\emph{IEEE Access}, 2019), este trabajo presenta el diseño, implementación en PyTorch y evaluación sistemática A/B (\emph{ceteris paribus}) de la capa \texttt{AdaptiveMorphPooling2d}. El operador calcula descriptores estadísticos e informacionales ($\phi$) sobre el histograma de cada componente RGB bajo dos estrategias seleccionables de partición de dominio: (1) vecindad local (\texttt{W0}) y (2) partición en sub-regiones con unión dinámica por contacto (\texttt{W1}, \texttt{W4}, \texttt{W9}, \texttt{W16}, \texttt{W25}, \texttt{W49}), incorporando ocho funciones $\phi$ (\texttt{SMO}, \texttt{VAR}, \texttt{MEAN}, \texttt{MIN}, \texttt{MAX}, \texttt{MO1}, \texttt{MO2} y la nueva Entropía de Shannon \texttt{ENT} sobre niveles discretos $0\text{--}255$). Mediante una transformación escalar ponderada $\mathcal{T}(v)=\langle v,\psi\rangle$, la capa selecciona el píxel físico completo ganador sin alterar su cromaticidad original. A través de \textbf{258 entrenamientos controlados a 50 épocas} sobre múltiples particiones del archivo dermatoscópico ISIC (desde $2{,}874$ hasta $11{,}005$ imágenes) en arquitecturas \texttt{CNN Simple}, \texttt{ResNet-18} y \texttt{VGG-16}, el método propuesto demuestra mejoras estadísticamente significativas ($p < 0.05$, test $t$ pareado) frente a \texttt{MaxPool2d}: en \texttt{CNN Simple} alcanza ganancias de hasta $+7.61\%$ en Exactitud, $+10.41\%$ en Sensibilidad ($p=0.033$) y $+8.96\%$ en F1-Score ($p=0.020$, superando al baseline en $9/9$ semillas), además de reducir en $61.2$ casos medios los falsos negativos de melanoma en datasets de $11{,}005$ imágenes ($+8.74\%$ Sensibilidad, $p=0.048$); mientras que en \emph{Transfer Learning} registra récords de hasta $0.9898$ de AUC-ROC (\texttt{ResNet-18}) y $95.57\%$ de Sensibilidad media (\texttt{VGG-16}) sin sobrecoste temporal en ventana global. Este documento consolida el fundamento matemático, la diferenciación frente al estado del arte, la arquitectura de software actual (CLI + GUI) y la hoja de ruta de los experimentos restantes.
+      \vspace{0.2cm}\\
+      \textbf{\textit{Palabras Clave---}} Morfología matemática en color, Pooling morfológico adaptativo, Ordenamiento reducido ($\mathcal{R}$-ordering), Colores falsos, Entropía de histograma, Partición de dominio, Detección de melanoma, Redes neuronales convolucionales.
+    \end{abstract}
+    \vspace{0.4cm}
+    \hrule
+    \vspace{0.45cm}
+  \end{@twocolumnfalse}
+]
+
+% ============================================================================
+\section{Introducción y Planteamiento del Problema}
+% ============================================================================
+
+El melanoma cutáneo constituye la variante más agresiva y letal de cáncer de piel, donde la detección temprana mediante dermatoscopía digital determina directamente la tasa de supervivencia del paciente. En la práctica dermatológica (regla ABCD y lista de 7 puntos), el diagnóstico diferencial entre un nevo benigno y un melanoma maligno depende críticamente de sutiles patrones cromáticos y estructurales: presencia de múltiples tonos de marrón, negro, rojo (eritema/vascularización), regresiones blancas y el característico \emph{velo azul-grisáceo o azul-blanco}.
+
+En el aprendizaje profundo moderno, las arquitecturas convolucionales emplean operadores de submuestreo (\emph{pooling}) para reducir las dimensiones espaciales de los mapas de representación y ganar invarianza ante pequeñas traslaciones. Sin embargo, cuando el operador clásico \texttt{nn.MaxPool2d} se aplica sobre una imagen en color tricromática $f: \mathbb{Z}^2 \to \mathbb{R}^3$ dentro de una ventana espacial $B$ (típicamente de $2\times2$ con paso $2$), realiza un \textbf{ordenamiento marginal canal por canal}:
+\begin{equation}
+  \text{MaxPool}_{\text{marginal}}(B) = \left( \max_{p \in B} R_p, \; \max_{p \in B} G_p, \; \max_{p \in B} B_p \right).
+  \label{eq:marginal_maxpool}
+\end{equation}
+
+Si el valor máximo de rojo pertenece al píxel $p_1 \in B$, el de verde a $p_2 \in B$ y el de azul a $p_3 \in B$ con $p_1 \neq p_2 \neq p_3$, la tupla resultante conforma un \textbf{color falso o espurio} que jamás existió en la lesión dermatoscópica real. En zonas de transición entre glóbulos oscuros, red pigmentaria y piel perilesional eritematosa, este artefacto destruye la correlación inter-canal y contamina la representación que reciben las capas convolucionales posteriores.
+
+\textbf{Objetivo del proyecto:} Sustituir el submuestreo marginal por una capa de \emph{Pooling Morfológico Adaptativo Vectorial} (\texttt{AdaptiveMorphPooling2d}) fundamentada en el marco estadístico de Vázquez Noguera et al.~\cite{vazquez2019adaptive}, evaluando rigurosamente bajo condiciones \emph{ceteris paribus} si la preservación estricta de píxeles físicos reales mejora el desempeño diagnóstico (especialmente la \textbf{Sensibilidad} o reducción de Falsos Negativos en melanoma) frente al \texttt{MaxPool2d} estándar.
+
+% ============================================================================
+\section{Trabajos Relacionados y Diferenciación en el Estado del Arte}
+% ============================================================================
+
+\subsection{Marco Base: Ordenamiento Adaptativo RGB por Parámetros Estadísticos (Vázquez Noguera et al., 2019)}
+La extensión de la Morfología Matemática (MM) a imágenes en color exige definir un orden entre vectores en $\mathbb{R}^3$, dado que no existe un orden natural canónico para los colores~\cite{aptoula2007comparative}. El orden lexicográfico clásico ($R \to G \to B$) sufre de arbitrariedad al priorizar rígidamente la primera componente.
+
+Para superar esta limitación sin recurrir a colores de referencia fijos, Vázquez Noguera, Schaerer, Facon y Legal Ayala~\cite{vazquez2019adaptive} propusieron en \emph{IEEE Access} (2019) un marco adaptativo donde cada píxel RGB $v = (r,g,b)$ se proyecta a un escalar mediante el producto interno con un vector de pesos $\psi = (\psi_1, \psi_2, \psi_3)$ extraído de parámetros estadísticos del histograma de cada canal en un subdominio espacial $\mathcal{D}_m \subset \mathcal{D}$ (media, mínimo, máximo, modas, varianza y suavidad). Asimismo, en la Sección~V de dicho artículo (\emph{Conclusions and Future Work}), los autores dejaron explícitamente planteada como línea futura la incorporación de la \textbf{entropía del histograma por componente de color} y su extensión a nuevas operaciones y tareas de clasificación, línea que este repositorio materializa en redes neuronales profundas.
+
+\subsection{Diferenciación Estricta frente al \emph{MorphPool} de Groenendijk et al. (2022)}
+En la literatura reciente de aprendizaje profundo existe una propuesta homónima denominada \emph{MorphPool}, publicada por Groenendijk, Dorst y Gevers (\texttt{arXiv:2211.14037}, 2022)~\cite{groenendijk2022morphpool}. Durante el desarrollo de esta tesis se realizó una auditoría comparativa exhaustiva para verificar si dicho trabajo abordaba el mismo problema de colores falsos. La conclusión técnica es contundente: \textbf{ambos enfoques resuelven problemas completamente distintos y ortogonales}:
+
+\begin{enumerate}[leftmargin=*,nosep]
+  \item \textbf{Operación marginal vs.\ vectorial:} Groenendijk et al.\ formulan el \emph{pooling} sobre el semianillo tropical $\{\mathbb{R}_{-\infty}, \bigvee, +\}$ como una dilatación en escala de grises $f_+(\mathbf{x}_\vee) = \bigvee_{\mathbf{z}} (f_-(\mathbf{x}_\wedge - \mathbf{z}) + h(\mathbf{z}))$, e indican explícitamente en la Sección~3.1 (pág.~5) que \emph{omiten la dimensión de canales por considerar el pooling una operación puramente espacial}. En consecuencia, cada canal $R, G, B$ sigue eligiendo su máximo en posiciones espaciales independientes, \textbf{manteniendo intacto el problema de generación de colores falsos}.
+  \item \textbf{Alteración aditiva o equivalencia trivial en RGB:} En su variante plana ($h_{\text{flat}} = 0$) con ventana $2\times2$ y paso $2$, el \emph{pooling} de Groenendijk et al.\ se reduce exactamente al \texttt{MaxPool2d} estándar. En sus variantes parametrizadas (parabólica con $C$ parámetros o libre con $C\times K^2$ parámetros entrenables en C++/CUDA), suma pesos $h_c(\mathbf{z})$ a las intensidades antes del supremo, desplazando artificialmente los valores cromáticos.
+  \item \textbf{Enfoque en \emph{Unpooling} y mapas de profundidad 3D:} El aporte real de Groenendijk et al.\ reside en el \emph{Morphological Unpooling} (interpolación morfológica por procedencia para evitar deconvoluciones de $C^2 K^2$ parámetros) en redes \emph{Encoder-Decoder} (\texttt{DownUpNet}) sobre datos geométricos de profundidad (\emph{Depth}). De hecho, los propios autores reportan menor eficacia relativa en señales RGB debido a su tratamiento escalar univariado.
+\end{enumerate}
+
+La Tabla~\ref{tab:groenendijk_vs_tesis} sintetiza las diferencias estructurales entre ambos paradigmas.
+
+\begin{table*}[t]
+\centering
+\caption{Comparación teórica y algorítmica entre el \emph{MorphPool} de Groenendijk et al.\ (2022) y el \texttt{AdaptiveMorphPooling2d} implementado en este repositorio.}
+\label{tab:groenendijk_vs_tesis}
+\footnotesize
+\begin{tabularx}{\textwidth}{>{\bfseries}p{3.3cm} X X}
+\toprule
+Dimensión & \textbf{MorphPool (Groenendijk et al., 2022~\cite{groenendijk2022morphpool})} & \textbf{\texttt{AdaptiveMorphPooling2d} (Este Repositorio, basado en~\cite{vazquez2019adaptive})} \\
+\midrule
+Problema central atacado & Reducir parámetros ($C^2 K^2$) y huecos dispersos en el \emph{up-sampling} (\emph{Unpooling}) para mapas geométricos 3D (\emph{Depth}). & \textbf{Eliminar los colores falsos/espurios} del submuestreo marginal en imágenes médicas RGB (melanoma). \\
+Régimen morfológico & \textbf{Marginal / Escalar} (dilatación independiente canal por canal sobre $\{\mathbb{R}_{-\infty}, \bigvee, +\}$). & \textbf{Vectorial en color} mediante ordenamiento reducido adaptativo ($\mathcal{R}$-ordering): $\mathcal{T}(v) = \langle v, \psi \rangle$. \\
+¿Evita colores falsos? & \textbf{No.} Mezcla posiciones espaciales distintas por canal y suma offsets $h_c(\mathbf{z})$ cuando no es plano. & \textbf{Sí, 100\%.} Obtiene un único \texttt{argmax} espacial conjunto y extrae con \texttt{gather} el vector físico $(R,G,B)$ intacto. \\
+Naturaleza de los pesos & Espaciales $h_c(\mathbf{z})$ aprendibles por descenso de gradiente ($0$, $C$ o $C\times K^2$ parámetros entrenables). & Espectrales/cromáticos $\psi = (\psi_R,\psi_G,\psi_B)$ \textbf{sin parámetros entrenables} ($0$ params), adaptativos por imagen/región. \\
+Tarea objetivo & Segmentación semántica densa y \emph{Depth Auto-encoding}. & Clasificación diagnóstica CAD en dermatoscopía (\texttt{CNN Simple}, \texttt{ResNet-18}, \texttt{VGG-16}). \\
+\bottomrule
+\end{tabularx}
+\end{table*}
+
+% ============================================================================
+\section{Formulación Matemática del Método Propuesto}
+% ============================================================================
+
+Sea $x \in \mathbb{R}^{B_{\text{batch}} \times 3 \times H \times W}$ un lote de imágenes dermatoscópicas tricromáticas RGB. Para reducir la resolución espacial en un factor de $2$ ($k_h = k_w = 2$, $s_h = s_w = 2$), la cuadrícula de salida posee dimensiones $H_{\text{out}} = \lfloor (H - 2)/2 \rfloor + 1$ y $W_{\text{out}} = \lfloor (W - 2)/2 \rfloor + 1$. En cada celda de salida $(u, w)$, la ventana de submuestreo $B_{u,w}$ contiene $4$ píxeles candidatos $\{v_1, v_2, v_3, v_4\} \subset \mathbb{R}^3$.
+
+\subsection{Estrategias de Partición de Dominio ($\mathcal{D}_m$)}
+Para calcular el vector de pesos $\psi$ asociado a la ventana $B_{u,w}$, se requiere definir el subdominio de píxeles $\mathcal{D}_m \subseteq \mathcal{D}$ del cual se extraerán las estadísticas cromáticas. Siguiendo fielmente la Sección~II-A de Vázquez Noguera et al.~\cite{vazquez2019adaptive}, el módulo \texttt{morph\_pool\_layer.py} implementa de forma seleccionable ambas estrategias del artículo:
+
+\begin{enumerate}[leftmargin=*,nosep]
+  \item \textbf{Estrategia 1 — Partición basada en vecindad local (\texttt{partition = W0}):}
+  La imagen no se divide en una rejilla fija. El dominio $\mathcal{D}_m$ es una ventana local cuadrada de tamaño $b \times b$ ($b \in \{2, 3, 5, 7\}$, controlada por \texttt{--stat-window}) alrededor de cada celda de pooling, denotada según la nomenclatura del artículo como \texttt{B2W0}, \texttt{B3W0}, \texttt{B5W0} o \texttt{B7W0}.
+  \item \textbf{Estrategia 2 — Partición en sub-regiones con unión por contacto (\texttt{partition = WX}):}
+  La imagen de tamaño $H \times W$ se particiona en una matriz de $M' \times N'$ sub-regiones disjuntas $\{W_{p,q}\}$ ($\lambda = M' \times N'$, soportando \texttt{W4}=$2\times2$, \texttt{W9}=$3\times3$, \texttt{W16}=$4\times4$, \texttt{W25}=$5\times5$, \texttt{W36}=$6\times6$, \texttt{W49}=$7\times7$, \texttt{W64}=$8\times8$ o formato general $M'\times N'$), donde cada sub-región base posee $\Delta_H = \lfloor H / M' \rfloor$ filas y $\Delta_W = \lfloor W / N' \rfloor$ columnas (absorbiendo la última fila/columna el residuo entero para cubrir el $100\%$ de los píxeles). Dada una ventana $B$ de tamaño $b \times b$ que cubre el rango espacial $[y_0, y_1] \times [x_0, x_1]$, el dominio $\mathcal{D}_m$ se construye como la \textbf{unión exacta de todas las sub-regiones en contacto con al menos un píxel de $B$} (Figuras~2 y~3 de~\cite{vazquez2019adaptive}):
+  \begin{equation}
+    \mathcal{D}_m(B) = \bigcup_{p = p_0}^{p_1} \bigcup_{q = q_0}^{q_1} W_{p,q},
+    \label{eq:domain_union}
+  \end{equation}
+  donde $p_0 = \min(\lfloor y_0 / \Delta_H \rfloor, M'-1)$, $p_1 = \min(\lfloor y_1 / \Delta_H \rfloor, M'-1)$, y análogamente $q_0, q_1$ en el eje horizontal. Esto garantiza matemáticamente que los $4$ píxeles evaluados dentro de $B_{u,w}$ compartan exactamente el mismo vector de pesos $\psi$, incluso cuando la ventana pisa la frontera entre dos o cuatro sub-regiones.
+  \item \textbf{Caso Especial Global (\texttt{partition = W1} o \texttt{stat\_window = global}):}
+  Corresponde a $M' = N' = 1$ ($\lambda = 1$), donde $\mathcal{D}_m = \mathcal{D}$ es la imagen completa, produciendo un único vector $\psi \in \mathbb{R}^3$ compartido por todas las ventanas de la imagen.
+\end{enumerate}
+
+\subsection{Descriptores Estadísticos e Informacionales ($\phi$)}
+Sea $h^{\mathcal{D}_m}_{f_c}(i) = n_i$ el histograma discreto de $8$ bits ($i \in \{0, 1, \dots, 255\}$) del canal $c \in \{R, G, B\}$ sobre los $n = |\mathcal{D}_m|$ píxeles del dominio $\mathcal{D}_m$, y sean $\{x_{c,1}, \dots, x_{c,n}\}$ sus intensidades continuas normalizadas en $[0,1]$. El repositorio implementa ocho funciones $\phi_c = \phi(h^{\mathcal{D}_m}_{f_c})$:
+
+\begin{itemize}[leftmargin=*,nosep]
+  \item \textbf{Media (\texttt{MEAN}, $\phi_{\text{Me}}$):} $\displaystyle \phi_{\text{Me}} = \frac{1}{n} \sum_{k=1}^{n} x_{c,k}$.
+  \item \textbf{Mínimo (\texttt{MIN}, $\phi_{\text{Min}}$):} $\displaystyle \phi_{\text{Min}} = \min_{1 \le k \le n} x_{c,k}$.
+  \item \textbf{Máximo (\texttt{MAX}, $\phi_{\text{Max}}$):} $\displaystyle \phi_{\text{Max}} = \max_{1 \le k \le n} x_{c,k}$.
+  \item \textbf{Moda Mínima (\texttt{MO1}, $\phi_{\text{minMo}}$):} Menor nivel cuantizado $i/255$ con frecuencia máxima: $\frac{1}{255}\min\{i \mid h^{\mathcal{D}_m}_{f_c}(i) \ge h^{\mathcal{D}_m}_{f_c}(i'), \forall i'\}$.
+  \item \textbf{Moda Máxima (\texttt{MO2}, $\phi_{\text{maxMo}}$):} Mayor nivel cuantizado $i/255$ con frecuencia máxima: $\frac{1}{255}\max\{i \mid h^{\mathcal{D}_m}_{f_c}(i) \ge h^{\mathcal{D}_m}_{f_c}(i'), \forall i'\}$.
+  \item \textbf{Varianza (\texttt{VAR}, $\phi_{\text{Var}}$):} $\displaystyle \phi_{\text{Var}} = \frac{1}{n} \sum_{k=1}^{n} (x_{c,k} - \phi_{\text{Me}})^2$.
+  \item \textbf{Suavidad Relativa (\texttt{SMO}, $\phi_R$):} $\displaystyle \phi_R = 1 - \frac{1}{1 + \phi_{\text{Var}}}$.
+  \item \textbf{Entropía de Shannon (\texttt{ENT}, $\phi_{\text{Ent}}$ — Nuevo descriptor incorporado):} Cuantizando cada intensidad a su nivel entero $q_{c,k} = \text{round}(255 \cdot x_{c,k}) \in \{0, \dots, 255\}$ y definiendo la probabilidad empírica $p_c(i) = h^{\mathcal{D}_m}_{f_c}(i) / n$, se calcula la entropía informacional del canal:
+  \begin{equation}
+    \phi_{\text{Ent}}\!\left(h^{\mathcal{D}_m}_{f_c}\right) = - \sum_{\substack{i=0 \\ p_c(i) > 0}}^{255} p_c(i) \log_2 p_c(i) \;\in [0, 8]\text{ bits}.
+    \label{eq:entropy}
+  \end{equation}
+\end{itemize}
+
+\begin{remark}[Optimización de VRAM para \texttt{ENT}]
+  En dominios locales pequeños ($n \le 64$, como \texttt{W0} con ventanas $2\times2$ a $7\times7$), alojar tensores de $256$ bins para cada celda espacial consumiría $>2.4\text{ GB}$ de VRAM por lote. Para evitarlo sin perder exactitud matemática, se implementó la identidad algebraica de multiplicidades: si $c_m = |\{r : q_r = q_m\}| \ge 1$ es la frecuencia del valor del $m$-ésimo píxel en la ventana, entonces $\phi_{\text{Ent}} = \log_2(n) - \frac{1}{n}\sum_{m=1}^{n} \log_2(c_m)$, lo cual requiere memoria adicional casi nula y elimina evaluaciones en cero. Para sub-regiones amplias (\texttt{W4..W64}) y ventana global (\texttt{W1}), donde el número de dominios por imagen es pequeño ($\le 64$), se construye el histograma exacto de $256$ bins mediante \texttt{scatter\_add\_} vectorizado en GPU.
+\end{remark}
+
+\subsection{Transformación Escalar y Selección sin Colores Falsos}
+Obtenida la terna $(\phi_R, \phi_G, \phi_B)$ para una ventana $B_{u,w}$, se construye el vector de pesos normalizado $\psi = (\psi_R, \psi_G, \psi_B)$ contemplando regiones planas ($\sum_c \phi_c \le \varepsilon$, ej.\ viñeteado negro del dermatoscopio):
+\begin{equation}
+  \psi_c = \begin{cases}
+    \dfrac{\phi_c}{\phi_R + \phi_G + \phi_B + \varepsilon}, & \text{si } \phi_R + \phi_G + \phi_B > \varepsilon, \\[0.25cm]
+    \dfrac{1}{3}, & \text{en caso contrario } (\varepsilon = 10^{-8}).
+  \end{cases}
+  \label{eq:psi_norm}
+\end{equation}
+
+Cada uno de los $4$ píxeles $v_k = (R_k, G_k, B_k) \in B_{u,w}$ recibe la puntuación escalar del ordenamiento reducido ($\mathcal{R}$-ordering):
+\begin{equation}
+  \mathcal{T}(v_k) = \langle v_k, \psi \rangle = R_k \psi_R + G_k \psi_G + B_k \psi_B, \quad k \in \{1,2,3,4\}.
+  \label{eq:inner_prod}
+\end{equation}
+
+Finalmente, se determina el índice ganador único $k^* = \arg\max_{k \in \{1..4\}} \mathcal{T}(v_k)$ y la salida del operador asigna el vector tricromático original completo $y_{u,w} = v_{k^*} = (R_{k^*}, G_{k^*}, B_{k^*})$ mediante \texttt{torch.gather}, garantizando \textbf{cero colores falsos}.
+
+% ============================================================================
+\section{Arquitectura del Repositorio y Metodología Experimental}
+% ============================================================================
+
+\subsection{Estructura Modular del Código Actual}
+El proyecto (directorio raíz \texttt{21-10/}) se organiza en los siguientes módulos desacoplados en Python / PyTorch:
+\begin{itemize}[leftmargin=*,nosep]
+  \item \texttt{morph\_pool\_layer.py}: Implementación vectorizada de \texttt{AdaptiveMorphPooling2d}, normalización de particiones (\texttt{W0}, \texttt{W1}, \texttt{W4..W64}, \texttt{MxN}), caché de geometría de sub-regiones con unión por contacto y cálculo de los $8$ descriptores $\phi$ (incluyendo \texttt{ENT} con restitución automática de escala $[0,1]$ si detecta tensores normalizados con ImageNet).
+  \item \texttt{models.py}: Define las tres arquitecturas comparativas donde el operador de pooling evaluado (\texttt{MorphPool} vs.\ \texttt{MaxPool2d} o \texttt{AvgPool2d}) actúa directamente sobre la entrada física RGB de $3$ canales antes de las convoluciones:
+    \begin{enumerate}[nosep]
+      \item \texttt{CNNClassifier} (\texttt{--model simple}): Entrada $112\times112 \to \text{Pool RGB } (56\times56) \to 2$ bloques $[\text{Conv3x3}(3\to32\to64) + \text{BN} + \text{ReLU} + \text{MaxPool2d}] \to \text{GAP} \to \text{Linear}(64\to32\to1)$. Entrenada íntegramente desde cero ($\text{lr}=10^{-3}$).
+      \item \texttt{PretrainedWithPool} con \texttt{resnet18}: Entrada $224\times224 \to \text{Pool RGB } (112\times112) \to$ bloques congelados (\texttt{conv1..layer2} preentrenados en ImageNet) $\to$ bloques entrenables (\texttt{layer3}, \texttt{layer4} y cabezal lineal, $\text{lr}=10^{-4}$).
+      \item \texttt{PretrainedWithPool} con \texttt{vgg16}: Entrada $224\times224 \to \text{Pool RGB } (112\times112) \to$ \texttt{features[:17]} congeladas $\to$ \texttt{features[17:]} y clasificador denso entrenables ($\text{lr}=10^{-4}$).
+    \end{enumerate}
+  \item \texttt{train\_eval.py}: Orquestador CLI con soporte multi-semilla (\texttt{--seeds}), multi-época (\texttt{--epochs-list}), precarga íntegra en memoria RAM (\texttt{FastRAMDataset}) y precomputación única (\texttt{\_precompute\_static\_features}) de la etapa inicial sin parámetros entrenables (pooling RGB + capas congeladas), eliminando cuellos de botella de E/S y evitando recalcular operaciones deterministas en cada época.
+  \item \texttt{gui\_experimentos.py} e \texttt{iniciar\_gui.bat}: Interfaz gráfica de escritorio (\texttt{tkinter/ttk}) con listas desplegables para todos los argumentos, escaneo automático de datasets, generador de semillas aleatorias, vista previa del comando CLI, consola en tiempo real y apertura directa de reportes HTML.
+  \item \texttt{report\_generator.py} y \texttt{report\_aggregator.py}: Generadores automáticos de informes científicos HTML/SVG individuales y agregados multi-semilla con respaldo en JSON y prueba $t$ de Student pareada (\texttt{scipy.stats.ttest\_rel}).
+  \item \texttt{presentaciones/presentacion\_resultados\_50ep.html}: Presentación interactiva consolidada con el análisis de las $258$ corridas a $50$ épocas.
+\end{itemize}
+
+\subsection{Conjuntos de Datos (ISIC Dermoscopy)}
+El espacio de trabajo cuenta con $10$ particiones curadas a partir del repositorio internacional ISIC (clasificación binaria: \texttt{benign = 0} vs.\ \texttt{malignant = 1}), detalladas en la Tabla~\ref{tab:datasets}.
+
+\begin{table}[H]
+\centering
+\caption{Conjuntos de datos dermatoscópicos disponibles en el repositorio.}
+\label{tab:datasets}
+\footnotesize
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Carpeta Dataset} & \textbf{Train} & \textbf{Test} & \textbf{Total} \\
+\midrule
+\texttt{archive\_2k} / \texttt{archive\_2k\_2} & $2{,}274$ & $600$ & $2{,}874$ \\
+\texttt{archive} (ISIC Base Kaggle) & $2{,}637$ & $660$ & $3{,}297$ \\
+\texttt{archive\_resized\_1 / 2 / 3} & $\sim 3{,}066$ & $\sim 734$ & $\sim 3{,}800$ \\
+\texttt{archive2} (Gran escala A) & $9{,}605$ & $1{,}000$ & $10{,}605$ \\
+\texttt{archive11k\_1} / \texttt{archive11k\_2} & $9{,}605$ & $1{,}400$ & $11{,}005$ \\
+\texttt{archive3} (Escala máxima) & $11{,}879$ & $2{,}000$ & $13{,}879$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Rigor Experimental A/B (\emph{Ceteris Paribus}) y Métricas}
+Para cada semilla $s$, \texttt{run\_experiment} reinicia los generadores pseudoaleatorios (\texttt{random}, \texttt{numpy}, \texttt{torch}, \texttt{cuda}) en dos puntos exactos: antes de instanciar los pesos del modelo y justo antes de generar las permutaciones de lotes (\texttt{torch.randperm}) de la época~1. Así, el modelo \emph{Baseline} (\texttt{MaxPool2d}) y el \emph{Propuesto} (\texttt{AdaptiveMorphPooling2d}) parten de idéntica inicialización sináptica y recorren exactamente la misma secuencia de minilotes con optimizador \texttt{AdamW} y pérdida \texttt{BCEWithLogitsLoss}. Cualquier variación observada en validación ciega es atribuible exclusivamente al operador de pooling.
+
+En oncología dermatológica, la métrica prioritaria es la \textbf{Sensibilidad} ($\text{TPR} = \frac{TP}{TP+FN}$), dado que un Falso Negativo ($FN$) implica dar de alta erróneamente un melanoma real; complementada con \textbf{Especificidad} ($\text{TNR} = \frac{TN}{TN+FP}$), \textbf{Exactitud} (\emph{Accuracy}), \textbf{F1-Score} y \textbf{AUC-ROC}. La significancia estadística sobre $n$ semillas se evalúa con el test $t$ de Student pareado ($\alpha = 0.05$).
+
+% ============================================================================
+\section{Resultados Experimentales Obtenidos (258 Corridas a 50 Épocas)}
+% ============================================================================
+
+Hasta la fecha se han completado \textbf{258 entrenamientos a 50 épocas} (agrupados en $25$ estudios multi-semilla) sobre una GPU \textbf{NVIDIA GTX 1650 KO Ultra}, evaluando los descriptores previos (\texttt{MEAN}, \texttt{SMO}, \texttt{VAR}, \texttt{MO2}, \texttt{MIN}, \texttt{MAX}) en ventanas locales \texttt{W0} (\texttt{5x5}, \texttt{7x7}) y dominio global \texttt{W1} (\texttt{global}). La Tabla~\ref{tab:master_results} resume los hitos principales.
+
+\begin{table*}[t]
+\centering
+\caption{Tabla Maestra de configuraciones destacadas a 50 épocas (\texttt{Baseline MaxPool2d} $\to$ \texttt{Propuesto AdaptiveMorphPooling2d}).}
+\label{tab:master_results}
+\footnotesize
+\begin{tabular}{lllrccccp{4.1cm}}
+\toprule
+\textbf{Red} & \textbf{$\phi$} & \textbf{Dominio} & \textbf{Dataset ($n$)} & \textbf{AUC} & \textbf{Accuracy} & \textbf{Sensibilidad} & \textbf{F1-Score} & \textbf{Hallazgo / Significancia} \\
+\midrule
+CNN Simple & MEAN & W1 (global) & \texttt{archive\_2k\_2} (9) & $0.9342 \to \mathbf{0.9437}$ & $77.17 \to \mathbf{84.78\%}$ & $73.00 \to \mathbf{83.41\%}$ & $75.05 \to \mathbf{84.01\%}$ & \textcolor{gain}{\textbf{$p=0.020^*$ F1 (9/9 seeds)}}, $p=0.033^*$ Sens, $-38.5\%$ FN \\
+CNN Simple & SMO & W1 (global) & \texttt{archive11k\_2} (11) & $0.9595 \to \mathbf{0.9601}$ & $83.49 \to \mathbf{86.97\%}$ & $71.92 \to \mathbf{80.66\%}$ & $79.96 \to \mathbf{85.13\%}$ & \textcolor{gain}{\textbf{$p=0.048^*$ Sens ($-61.2$ FN)}}, $+3.47\%$ Acc (7/11 seeds) \\
+CNN Simple & SMO & W1 (global) & \texttt{archive\_2k\_2} (9) & $0.9342 \to \mathbf{0.9403}$ & $77.17 \to \mathbf{82.00\%}$ & $73.00 \to \mathbf{80.70\%}$ & $75.05 \to \mathbf{80.39\%}$ & $+4.83\%$ Acc, $+7.70\%$ Sens (gana 7/9 seeds) \\
+CNN Simple & MEAN & B5W0 (5x5) & \texttt{archive\_2k\_2} (9) & $0.9342 \to \mathbf{0.9389}$ & $77.17 \to \mathbf{81.72\%}$ & $73.00 \to \mathbf{75.78\%}$ & $75.05 \to \mathbf{77.62\%}$ & $+4.56\%$ Acc, Especificidad $+6.33\%$ ($87.67\%$) \\
+CNN Simple & SMO & B7W0 (7x7) & \texttt{archive2} (4) & $0.9684 \to \mathbf{0.9694}$ & $89.62 \to \mathbf{91.03\%}$ & $90.65 \to 90.10\%$ & $89.80 \to \mathbf{90.94\%}$ & Mayor Accuracy en CNN sobre $10.6\text{k}$ imgs ($+3.35\%$ Spec) \\
+CNN Simple & MO2 & B7W0 (7x7) & \texttt{archive2} (4) & $0.9695 \to 0.9688$ & $90.88 \to 89.97\%$ & $86.65 \to \mathbf{89.20\%}$ & $90.46 \to 89.94\%$ & \textcolor{gain}{\textbf{$p=0.0053^{**}$ Sens}} (gana en 4/4 seeds) \\
+\midrule
+ResNet-18 & MEAN & B7W0 (7x7) & \texttt{archive} (13) & $0.9584 \to \mathbf{0.9603}$ & $88.78 \to \mathbf{89.11\%}$ & $88.08 \to \mathbf{89.23\%}$ & $87.72 \to \mathbf{88.17\%}$ & Supera en las 4 métricas; gana 9/13 seeds en Sens \\
+ResNet-18 & SMO & W1 (global) & \texttt{archive11k\_2} (9) & $0.9860 \to \mathbf{0.9861}$ & $94.37 \to 94.32\%$ & $94.19 \to \mathbf{94.65\%}$ & $94.36 \to 94.34\%$ & \textcolor{gain}{\textbf{Récord global AUC $0.9898$}} y Acc $95.07\%$ (\texttt{s784}); $-26\%$ SD \\
+\midrule
+VGG-16 & MEAN & B5W0 (5x5) & \texttt{archive2} (5) & $0.9739 \to 0.9722$ & $92.18 \to \mathbf{92.62\%}$ & $88.48 \to \mathbf{88.84\%}$ & $91.89 \to \mathbf{92.33\%}$ & Gana en Acc, Sens, Spec ($96.40\%$) y F1; mitad de varianza \\
+VGG-16 & SMO & W1 (global) & \texttt{archive11k\_1} (3) & $0.9830 \to \mathbf{0.9835}$ & $94.88 \to 94.57\%$ & $93.24 \to \mathbf{95.57\%}$ & $94.78 \to 94.63\%$ & \textcolor{gain}{\textbf{Récord Sensibilidad $95.57\%$}} ($+2.34\%$, $-34.5\%$ FN; pico $96.57\%$) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{Análisis en \texttt{CNN Simple} (Entrenamiento desde Cero)}
+\begin{enumerate}[leftmargin=*,nosep]
+  \item \textbf{Consistencia transversal en \texttt{archive\_2k\_2} ($n=9$ semillas idénticas: \texttt{108, 212, 347, 437, 536, 653, 794, 841, 921}):} Las $6$ configuraciones evaluadas con las $9$ semillas (\texttt{MEAN Global}, \texttt{SMO Global}, \texttt{MEAN 5x5}, \texttt{SMO 7x7}, \texttt{VAR 7x7} y \texttt{MEAN 7x7}) superaron simultáneamente al \texttt{MaxPool2d} en \textbf{las cinco métricas} (AUC, Accuracy, Sensibilidad, Especificidad y F1-Score).
+  \item \textbf{Estabilización frente a semillas adversas:} El Baseline con \texttt{MaxPool2d} exhibió alta inestabilidad ($\text{Accuracy} = 77.17\% \pm 12.26\%$, $\text{FN medio} = 81.0/300$). Con \texttt{MEAN Global}, la desviación estándar cayó casi a la tercera parte ($\pm 4.39\%$) y los Falsos Negativos bajaron a $49.8/300$ ($-31.2$ melanomas perdidos, $p=0.033^*$).
+  \item \textbf{Confirmación a gran escala ($11{,}005$ imágenes):} En \texttt{archive11k\_2} ($n=11$), \texttt{SMO Global} redujo los Falsos Negativos medios de $196.5$ a $135.4$ sobre $700$ melanomas reales ($-31.1\%$, $p=0.048^*$), elevando la Sensibilidad en $+8.74\%$ y la Exactitud en $+3.47\%$. En \texttt{archive11k\_1} ($n=11$), el mismo operador reforzó significativamente la Especificidad ($91.74\% \to 94.18\%$, $+2.44\%$, $p=0.050$, ganando en $8/11$ semillas).
+\end{enumerate}
+
+\subsection{Análisis en \emph{Transfer Learning} (\texttt{ResNet-18} y \texttt{VGG-16})}
+En los modelos preentrenados sobre ImageNet, el tensor de entrada pasa por normalización estándar ($\mu=[0.485,0.456,0.406]$, $\sigma=[0.229,0.224,0.225]$), produciendo valores centrados en cero con signos negativos. Los experimentos sobre $11{,}005$ imágenes confirmaron que el descriptor \texttt{SMO} (invariante a traslación al depender solo de la varianza $\sigma^2 \ge 0$) logra los valores diagnósticos absolutos más altos de todo el estudio:
+\begin{itemize}[leftmargin=*,nosep]
+  \item En \textbf{\texttt{ResNet-18 + SMO Global}} (\texttt{archive11k\_2}, $n=9$), supera al Baseline en $5/9$ semillas en Accuracy, Sensibilidad y F1, disminuye un $26\%$ la desviación estándar de Accuracy ($0.65\% \to 0.48\%$) y establece el récord global de AUC-ROC con $0.9898$ ($95.07\%$ Accuracy en \texttt{s784}).
+  \item En \textbf{\texttt{VGG-16 + SMO Global}} (\texttt{archive11k\_1}, $n=3$), alcanza la mayor Sensibilidad media del proyecto con \textbf{$95.57\%$} ($+2.34\%$), reduciendo los Falsos Negativos medios de $47.3$ a solo $31.0$ de $700$ melanomas, y reduciendo la desviación estándar de Sensibilidad en un $65\%$ ($3.35\% \to 1.17\%$).
+\end{itemize}
+
+\subsection{Eficiencia Computacional}
+Gracias a la precarga en RAM (\texttt{FastRAMDataset}) y a la precomputación única de etapas sin pesos entrenables (\texttt{\_precompute\_static\_features}), entrenar $50$ épocas sobre \textbf{$11{,}005$ imágenes} en la GPU NVIDIA GTX 1650 KO Ultra con ventana \texttt{W1 (Global)} tarda exactamente lo mismo que \texttt{MaxPool2d}: \textbf{$172.7\text{ s}$ ($\sim 2.9\text{ min}$)} vs.\ $172.9\text{ s}$ en \texttt{CNN Simple} (ratio $1.00\times$) y \textbf{$490.2\text{ s}$ ($\sim 8.2\text{ min}$)} vs.\ $499.1\text{ s}$ en \texttt{ResNet-18} (ratio $0.98\times$).
+
+% ============================================================================
+\section{Bitácora de Estado Actual y Hoja de Ruta (Próximos Pasos)}
+% ============================================================================
+
+Con el fin de mantener trazabilidad exacta del proyecto y servir de contexto técnico para próximas sesiones de trabajo e inteligencias artificiales colaboradoras, la Tabla~\ref{tab:roadmap} resume el estado de cada componente a noviembre de 2026.
+
+\begin{table}[H]
+\centering
+\caption{Estado actual de los módulos y tareas de la tesis.}
+\label{tab:roadmap}
+\footnotesize
+\begin{tabularx}{\columnwidth}{p{2.9cm} c X}
+\toprule
+\textbf{Componente} & \textbf{Estado} & \textbf{Detalle Técnico} \\
+\midrule
+Capa \texttt{MorphPool} base (\texttt{W0}, \texttt{W1}) & Completado & Probada en $258$ corridas a $50$ épocas (\texttt{CNN}, \texttt{ResNet-18}, \texttt{VGG-16}). \\
+Partición en Sub-regiones (\texttt{W4..W49}) & Implementado & Unión exacta por contacto (Figs.~2 y~3 de~\cite{vazquez2019adaptive}) verificada contra referencia fuerza bruta. \textbf{Pendiente correr tanda de 50 ép.} \\
+Descriptor Entropía (\texttt{ENT}, $0\text{--}255$) & Implementado & Entropía de Shannon vectorizada + restitución ImageNet verificada sin \texttt{NaN}s. \textbf{Pendiente correr tanda de 50 ép.} \\
+Interfaz Gráfica (\texttt{gui\_experimentos.py}) & Completado & Desplegables completos para todos los parámetros, generador de semillas y consola en vivo. \\
+Ejecución en la nube (Google Colab T4) & Planificado & Compatible directamente; opcional crear notebook \texttt{.ipynb} con formularios y guardado en Drive. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Experimentos Prioritarios Pendientes de Ejecución}
+A partir de las dos últimas incorporaciones solicitadas por el tutor (partición de dominio en sub-regiones \texttt{WX} y entropía \texttt{ENT}), los siguientes pasos experimentales inmediatos son:
+\begin{enumerate}[leftmargin=*,nosep]
+  \item \textbf{Evaluación sistemática del descriptor de Entropía (\texttt{--metric ENT}):} Ejecutar estudios multi-semilla ($n \ge 9$, $50$ épocas) con \texttt{ENT} tanto en ventana global (\texttt{W1}) como en vecindades locales (\texttt{B5W0}, \texttt{B7W0}) y sub-regiones (\texttt{W9}, \texttt{W25}, \texttt{W49}) sobre \texttt{archive\_2k\_2} y \texttt{archive11k\_2}, comparando su ganancia diagnóstica frente a \texttt{SMO} y \texttt{MEAN}.
+  \item \textbf{Estudio de ablación de Partición de Dominio (\texttt{W0} vs.\ \texttt{W1} vs.\ \texttt{W4, W9, W25, W49}):} Replicar en clasificación CNN el análisis de las Figuras~11 y~12 de Vázquez Noguera et al.~\cite{vazquez2019adaptive}, determinando si dividir la imagen dermatoscópica en sub-regiones (por ejemplo $3\times3$ en \texttt{W9}, donde el centro captura el núcleo de la lesión y la periferia captura la piel sana circundante) aporta ventajas frente al promedio global \texttt{W1}.
+  \item \textbf{Comparación complementaria contra \texttt{AvgPool2d} (\texttt{--pool avg}):} Ampliar las corridas de control usando \texttt{--pool avg} para demostrar que la preservación de bordes cromáticos nítidos mediante selección morfológica vectorial también supera al difuminado lineal del promedio espacial.
+\end{enumerate}
+
+\subsection{Referencia Rápida de Comandos CLI Actuales}
+Para reproducir o continuar cualquiera de los experimentos desde consola o scripts automatizados:
+\begin{verbatim}
+# 1. Entropía (0-255) con 9 sub-regiones (B2W9):
+python train_eval.py --model simple --metric ENT \
+    -p W9 --stat-window 2 -d archive_2k_2 \
+    --seeds 108 212 347 437 536 653 794 841 921 -e 50
+
+# 2. SMO con 25 sub-regiones y ventana 5x5 (B5W25):
+python train_eval.py --model simple --metric SMO \
+    -p W25 --stat-window 5 -d archive11k_2 -e 50
+
+# 3. Interfaz gráfica de escritorio con desplegables:
+python gui_experimentos.py
+\end{verbatim}
+
+% ============================================================================
+\begin{thebibliography}{9}
+\footnotesize
+
+\bibitem{vazquez2019adaptive}
+J.~L. Vázquez~Noguera, C.~E. Schaerer, J.~Facon, and H.~Legal~Ayala, ``Adaptive RGB color lexicographical ordering framework using statistical parameters from the color component histogram,'' \emph{IEEE Access}, vol.~7, pp.~142812--142829, 2019, doi: 10.1109/ACCESS.2019.2943840.
+
+\bibitem{groenendijk2022morphpool}
+R.~Groenendijk, L.~Dorst, and T.~Gevers, ``MorphPool: Efficient non-linear pooling \& unpooling in CNNs,'' \emph{arXiv preprint arXiv:2211.14037}, 2022.
+
+\bibitem{aptoula2007comparative}
+E.~Aptoula and S.~Lefèvre, ``A comparative study on multivariate mathematical morphology,'' \emph{Pattern Recognition}, vol.~40, no.~11, pp.~2914--2929, 2007.
+
+\bibitem{gonzalez2018digital}
+R.~C. Gonzalez and R.~E. Woods, \emph{Digital Image Processing}, 4th~ed. New York, NY, USA: Pearson, 2018.
+
+\bibitem{isic_kaggle}
+International Skin Imaging Collaboration (ISIC), ``Skin Cancer: Malignant vs. Benign Dermoscopy Dataset,'' curado por C.~Fanconi, Kaggle Repository.
+
+\end{thebibliography}
+
+\end{document}

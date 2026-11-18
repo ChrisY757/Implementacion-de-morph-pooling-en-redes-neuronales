@@ -84,11 +84,13 @@ El proyecto está diseñado bajo una arquitectura modular y desacoplada:
 ├── archive/                      # Dataset ISIC organizado en train/ y test/ (benign/malignant)
 │   ├── train/
 │   └── test/
-├── morph_pool_layer.py           # Capa PyTorch AdaptiveMorphPooling2d con vector de pesos psi
-├── models.py                     # Red neuronal convolucional CNNClassifier (Red A vs Red B)
+├── morph_pool_layer.py           # Capa PyTorch AdaptiveMorphPooling2d (estrategias W0 y WX del paper)
+├── models.py                     # Redes CNNClassifier, ResNet-18 y VGG-16 (Red A vs Red B)
 ├── train_eval.py                 # Orquestador del entrenamiento A/B con soporte de argumentos CLI
+├── gui_experimentos.py           # Interfaz gráfica (GUI) interactiva con selectores desplegables
+├── iniciar_gui.bat               # Lanzador directo de la interfaz gráfica en Windows
 ├── report_generator.py           # Motor generador del informe científico interactivo en HTML con SVGs
-├── reporte_experimento_melanoma.html # Informe generado con métricas, curvas y matrices
+├── report_aggregator.py          # Agregador estadístico multi-semilla (t-test pareado)
 └── README.md                     # Documentación completa y guía de interpretación
 ```
 
@@ -124,31 +126,45 @@ pip install torch torchvision scikit-learn numpy
 
 ---
 
-## 5. Guía de Ejecución por Terminal (Argumentos CLI)
+## 5. Interfaz Gráfica (GUI) y Guía de Ejecución por Terminal (CLI)
 
-El script [train_eval.py](train_eval.py) incluye un sistema completo de argumentos por línea de comandos (`argparse`) que permite configurar el número de **épocas (etapas)**, tamaño de lote, tasa de aprendizaje y nombre del informe.
+### 5.1 Ejecución mediante Interfaz Gráfica (Recomendado)
+Para seleccionar cómodamente todos los parámetros mediante listas desplegables (Dataset, Modelo, Descriptor $\phi$, Estrategia de Partición de Dominio `W0..W49`, Ventana $B$, Épocas, Semillas y apertura directa de reportes HTML), ejecute:
+
+```bash
+python gui_experimentos.py
+```
+O haga doble clic sobre **`iniciar_gui.bat`** en Windows.
+
+---
+
+### 5.2 Guía de Ejecución por Terminal (Argumentos CLI)
+
+El script [train_eval.py](train_eval.py) incluye un sistema completo de argumentos por línea de comandos (`argparse`) que permite configurar la **partición de dominio del paper (`-p` / `--partition`)**, el número de **épocas**, tamaño de lote, tasa de aprendizaje, arquitectura y semillas.
+
+### Estrategias de Partición de Dominio (`--partition` / `-p`) según Vázquez Noguera et al. (2019):
+* **`W0` (Estrategia 1 — Vecindad local):** El dominio $\mathcal{D}_m$ es la ventana local centrada/ubicada en cada celda de pooling (`--stat-window` `2`, `3`, `5`, `7`, p. ej. `B5W0`).
+* **`W1` (Estrategia 2 — Global $1\times1$):** La imagen completa actúa como una única región.
+* **`W4`, `W9`, `W16`, `W25`, `W49` (Estrategia 2 — Sub-regiones con unión por contacto):** Divide la imagen $M \times N$ en una matriz de $M' \times N'$ sub-regiones ($2\times2, 3\times3, 4\times4, 5\times5, 7\times7$) de $\lfloor M/M' \rfloor \times \lfloor N/N' \rfloor$ píxeles. Para cada ventana $B$, toda sub-región en contacto con algún píxel de $B$ se une en $\mathcal{D}_m$ (Figuras 2 y 3 del artículo).
 
 ### Ver la Ayuda de Todos los Comandos Disponibles:
 ```bash
 python train_eval.py --help
 ```
 
-Salida esperada:
-```text
-usage: train_eval.py [-h] [-e EPOCHS] [-b BATCH_SIZE] [--lr LR]
-                     [--metric {SMO,VAR}] [-d DATA_DIR] [-o OUTPUT]
+### Ejemplos con Partición de Dominio del Paper:
+```bash
+# 9 sub-regiones (3x3) con ventana base 2x2 (B2W9) y descriptor SMO:
+python train_eval.py --metric SMO --partition W9 -e 50
 
-Experimento A/B: Pooling Morfologico Adaptativo vs MaxPool2d en Imagenes Dermatoscopicas (Melanoma)
+# 25 sub-regiones (5x5) con ventana de contacto 3x3 (B3W25) en multi-semilla:
+python train_eval.py --model simple --metric SMO -p W25 --stat-window 3 --seeds 42 108 212 -e 50
 
-options:
-  -h, --help            Muestra este mensaje de ayuda y termina
-  -e, --epochs EPOCHS   Numero de etapas/epocas de entrenamiento por modelo (default: 5)
-  -b, --batch-size BATCH_SIZE
-                        Tamano del lote / batch size (default: 64)
-  --lr LR               Tasa de aprendizaje / Learning rate (default: 0.001)
-  --metric {SMO,VAR}    Metrica estadistica para el descriptor morfologico (default: SMO)
-  -d, --data-dir DIR    Ruta al directorio de datos que contiene 'train' y 'test' (default: ./archive)
-  -o, --output OUTPUT   Ruta/nombre del informe HTML de salida (default: reporte_experimento_melanoma.html)
+# Entropía de histograma (0-255) con 9 sub-regiones (B2W9):
+python train_eval.py --metric ENT --partition W9 -e 50
+
+# Vecindad local 5x5 sin sub-regiones (B5W0):
+python train_eval.py --metric MEAN -p W0 --stat-window 5 -e 50
 ```
 
 ### Comandos de Ejemplo:
